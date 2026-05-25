@@ -45,32 +45,48 @@
     .page-title span.bf { color: #FDAE61; }
     .page-title span.ufo { color: #2c7bb6; }
     .page-subtitle {
-      font-size: 11px; color: #ffffff; opacity: 0.55;
+      font-size: 11px; color: #ffffff; opacity: 0.9;
       line-height: 1.55;
     }
     .panel-heading {
       font-size: 10px; font-weight: 700;
-      color: #ffffff; opacity: 0.38;
+      color: #ffffff; opacity: 1;
       letter-spacing: 0.12em; text-transform: uppercase;
       margin-bottom: 7px;
     }
 
-    /* ── Mode toggle (per capita / count) ── */
-    .mode-row { display: flex; gap: 5px; }
-    .mode-btn {
-      flex: 1;
-      background: none;
-      border: 1px solid rgba(215,234,247,0.22);
-      color: rgba(215,234,247,0.45);
-      font-family: 'Courier New', Courier, monospace;
-      font-size: 10px; padding: 6px 4px;
-      cursor: pointer; border-radius: 2px;
-      transition: border-color 0.12s, color 0.12s;
+    /* ── Display mode pill toggle ── */
+    .mode-toggle-wrap {
+      position: relative;
+      display: flex;
+      border: 1px solid rgba(215,234,247,0.25);
+      border-radius: 3px;
+      overflow: hidden;
     }
-    .mode-btn.active { border-color: #D7EAF7; color: #D7EAF7; }
-    .mode-btn:hover:not(.active) {
-      border-color: rgba(215,234,247,0.45);
-      color: rgba(215,234,247,0.75);
+    .mode-toggle-track {
+      position: absolute; top: 0; bottom: 0; left: 0;
+      width: 50%;
+      background: rgba(215,234,247,0.14);
+      border-radius: 2px;
+      transition: left 0.18s ease;
+      pointer-events: none;
+    }
+    .mode-toggle-opt {
+      flex: 1; position: relative; z-index: 1;
+      background: none; border: none;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 11px; padding: 7px 4px;
+      text-align: center; cursor: pointer;
+      color: rgba(215,234,247,0.5);
+      transition: color 0.18s;
+    }
+    .mode-toggle-opt.active { color: #ffffff; font-weight: 700; }
+    .mode-toggle-opt:hover:not(.active) { color: rgba(215,234,247,0.8); }
+    #percap-note {
+      display: none;
+      font-size: 10px; color: rgba(215,234,247,0.65);
+      margin-top: 5px; text-align: center;
+      font-style: italic;
     }
 
     /* ── Decade filter dropdown ── */
@@ -98,7 +114,7 @@
       flex: 1;
       background: none;
       border: 1px solid rgba(215,234,247,0.2);
-      color: rgba(215,234,247,0.4);
+      color: #ffffff;
       font-family: 'Courier New', Courier, monospace;
       font-size: 11px; padding: 5px 0;
       cursor: pointer; border-radius: 2px;
@@ -116,7 +132,7 @@
       width: 100%;
       background: none;
       border: 1px solid rgba(215,234,247,0.2);
-      color: rgba(215,234,247,0.45);
+      color: #ffffff;
       font-family: 'Courier New', Courier, monospace;
       font-size: 11px; padding: 6px 0;
       cursor: pointer; border-radius: 2px;
@@ -136,20 +152,20 @@
 
     /* ── Detail ── */
     #detail-hint {
-      font-size: 11px; color: #ffffff; opacity: 0.28;
+      font-size: 11px; color: #ffffff; opacity: 0.75;
       line-height: 1.65;
     }
     #detail-state-name {
-      font-size: 15px; font-weight: 700; color: #D7EAF7;
+      font-size: 15px; font-weight: 700; color: #ffffff;
       margin-bottom: 2px;
     }
     #detail-totals {
-      font-size: 11px; color: #D7EAF7; opacity: 0.55;
+      font-size: 11px; color: #ffffff; opacity: 1;
       margin-bottom: 12px; line-height: 1.7;
     }
     .detail-label {
       font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
-      text-transform: uppercase; opacity: 0.38; margin-bottom: 6px;
+      text-transform: uppercase; opacity: 0.9; margin-bottom: 6px;
     }
     .detail-label.bf { color: #FDAE61; opacity: 0.75; }
     .detail-label.ufo { color: #2c7bb6; opacity: 0.85; margin-top: 12px; }
@@ -169,16 +185,16 @@
     .row-bg:hover { fill: rgba(255,255,255,0.025); }
     .state-label {
       font-family: 'Courier New', Courier, monospace;
-      font-size: 11px; fill: #D7EAF7; opacity: 0.72;
+      font-size: 11px; fill: #ffffff; opacity: 1;
       cursor: pointer;
     }
     .val-label {
       font-family: 'Courier New', Courier, monospace;
-      font-size: 11px; fill: #D7EAF7; opacity: 0.6;
+      font-size: 11px; fill: #ffffff; opacity: 1;
     }
     .axis-label {
       font-family: 'Courier New', Courier, monospace;
-      font-size: 11px; fill: #D7EAF7; opacity: 0.6;
+      font-size: 11px; fill: #ffffff; opacity: 1;
     }
     .axis-line { stroke: rgba(215,234,247,0.18); stroke-width: 1; }
     .tick-line { stroke: rgba(215,234,247,0.12); stroke-width: 1; }
@@ -210,15 +226,9 @@
 
   <!-- ── CHART PANEL ── -->
   <div id="left-panel">
-    <div id="legend-strip">
-      <div class="legend-item">
-        <div class="legend-dot" style="background:#FDAE61"></div>
-        <span style="color:#FDAE61;font-size:11px">Bigfoot</span>
-      </div>
-      <div class="legend-item">
-        <div class="legend-dot" style="background:#2c7bb6"></div>
-        <span style="color:#2c7bb6;font-size:11px">UFO</span>
-      </div>
+    <div style="padding:0 0 10px 0;">
+      <div class="page-title"><span class="bf">Bigfoot</span> &amp; <span class="ufo">UFO</span> Sightings by State</div>
+      <div class="page-subtitle" style="margin-top:5px;">Side-by-side comparison across U.S. states. Bigfoot bars extend left; UFO bars extend right. Click any row for a decade breakdown.</div>
     </div>
     <div id="chart-wrap">
       <svg id="main-svg"></svg>
@@ -228,20 +238,27 @@
   <!-- ── CONTROLS PANEL ── -->
   <div id="right-panel">
     <div>
-      <div class="page-title">
-        <span class="bf">Bigfoot</span> &amp; <span class="ufo">UFO</span><br>Sightings by State
+      <div class="panel-heading">Series</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:22px;height:3px;background:#FDAE61;border-radius:2px;flex-shrink:0;"></div>
+          <span style="color:#FDAE61;font-size:12px;font-weight:700;">Bigfoot sightings</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:22px;height:3px;background:#2c7bb6;border-radius:2px;flex-shrink:0;"></div>
+          <span style="color:#2c7bb6;font-size:12px;font-weight:700;">UFO sightings</span>
+        </div>
       </div>
-    </div>
-    <div class="page-subtitle">
-      Side-by-side comparison of paranormal sightings across U.S. states. Bigfoot bars extend left; UFO bars extend right. Click any row for a decade breakdown.
     </div>
 
     <div>
       <div class="panel-heading">Display Mode</div>
-      <div class="mode-row">
-        <button class="mode-btn active" id="btn-count">[ total count ]</button>
-        <button class="mode-btn" id="btn-percap">[ per 10K res. ]</button>
+      <div class="mode-toggle-wrap">
+        <div class="mode-toggle-track" id="mode-toggle-track"></div>
+        <button class="mode-toggle-opt active" id="btn-count">Total count</button>
+        <button class="mode-toggle-opt" id="btn-percap">Per capita</button>
       </div>
+      <div id="percap-note">per 10,000 residents</div>
     </div>
 
     <div>
@@ -441,7 +458,7 @@ function render(animate = true) {
       .attr("x",x).attr("y",MARGIN_T - 10)
       .attr("text-anchor","middle")
       .attr("font-family","Courier New,monospace").attr("font-size",11)
-      .attr("fill","#D7EAF7").attr("opacity",0.65)
+      .attr("fill","#ffffff").attr("opacity",1)
       .text(displayMode === "count" ? fmtCount(t) : fmtPc(t));
   });
   // Tick lines for UFO
@@ -457,7 +474,7 @@ function render(animate = true) {
       .attr("x",x).attr("y",MARGIN_T - 10)
       .attr("text-anchor","middle")
       .attr("font-family","Courier New,monospace").attr("font-size",11)
-      .attr("fill","#D7EAF7").attr("opacity",0.65)
+      .attr("fill","#ffffff").attr("opacity",1)
       .text(displayMode === "count" ? fmtCount(t) : fmtPc(t));
   });
 
@@ -625,7 +642,7 @@ function drawMiniChart(svgId, state, detailObj, color, decades) {
       .attr("x", labelW - 4).attr("y", y + rowH / 2 + 1)
       .attr("text-anchor","end").attr("dominant-baseline","middle")
       .attr("font-family","Courier New,monospace").attr("font-size",9)
-      .attr("fill","#D7EAF7").attr("opacity", highlight ? 0.75 : 0.3)
+      .attr("fill","#ffffff").attr("opacity", highlight ? 1 : 0.55)
       .text(d.decade);
 
     sv.append("rect")
@@ -638,7 +655,7 @@ function drawMiniChart(svgId, state, detailObj, color, decades) {
         .attr("x", labelW + xScale(d.val) + 3).attr("y", y + rowH / 2 + 1)
         .attr("dominant-baseline","middle")
         .attr("font-family","Courier New,monospace").attr("font-size",9)
-        .attr("fill","#D7EAF7").attr("opacity", highlight ? 0.65 : 0.25)
+        .attr("fill","#ffffff").attr("opacity", highlight ? 1 : 0.5)
         .text(fmtCount(d.val));
     }
   });
@@ -668,20 +685,26 @@ function hideTooltip() { tip.style.opacity = "0"; }
 // ─────────────────────────────────────────────────────────────
 // CONTROLS
 // ─────────────────────────────────────────────────────────────
-document.getElementById("btn-count").addEventListener("click", () => {
-  displayMode = "count";
-  document.getElementById("btn-count").classList.add("active");
-  document.getElementById("btn-percap").classList.remove("active");
+function setDisplayMode(mode) {
+  displayMode = mode;
+  const track = document.getElementById("mode-toggle-track");
+  const note  = document.getElementById("percap-note");
+  if (mode === "count") {
+    document.getElementById("btn-count").classList.add("active");
+    document.getElementById("btn-percap").classList.remove("active");
+    track.style.left = "0";
+    note.style.display = "none";
+  } else {
+    document.getElementById("btn-percap").classList.add("active");
+    document.getElementById("btn-count").classList.remove("active");
+    track.style.left = "50%";
+    note.style.display = "block";
+  }
   render(); if (selectedState) renderDetail(selectedState);
   syncResetBtn();
-});
-document.getElementById("btn-percap").addEventListener("click", () => {
-  displayMode = "percap";
-  document.getElementById("btn-percap").classList.add("active");
-  document.getElementById("btn-count").classList.remove("active");
-  render(); if (selectedState) renderDetail(selectedState);
-  syncResetBtn();
-});
+}
+document.getElementById("btn-count").addEventListener("click", () => setDisplayMode("count"));
+document.getElementById("btn-percap").addEventListener("click", () => setDisplayMode("percap"));
 
 document.getElementById("decade-select").addEventListener("change", e => {
   currentDecade = e.target.value;
@@ -703,12 +726,10 @@ document.getElementById("btn-az-sort").addEventListener("click", () => {
 });
 
 document.getElementById("reset-btn").addEventListener("click", () => {
-  displayMode   = "count";
   currentDecade = "All";
   sortMode      = "count";
   selectedState = null;
-  document.getElementById("btn-count").classList.add("active");
-  document.getElementById("btn-percap").classList.remove("active");
+  setDisplayMode("count");
   document.getElementById("decade-select").value = "All";
   document.getElementById("btn-count-sort").classList.add("active");
   document.getElementById("btn-az-sort").classList.remove("active");
