@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>UFO Sightings Over Time</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; overflow: hidden;
+      font-family: 'Courier New', Courier, monospace;
+      background: #000;
+    }
+    #chart-wrap { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; }
+
+    /* ── Line & area ── */
+    .vz-line  { stroke: #2c7bb6; stroke-width: 2.5; fill: none; }
+
+    /* ── Axes ── */
+    .vz-axis text {
+      font-size: 15px; font-weight: 700;
+      fill: #ffffff; opacity: 1;
+      font-family: 'Courier New', Courier, monospace;
+    }
+    .vz-axis .domain    { stroke: #ffffff; opacity: 0.7; }
+    .vz-axis .tick line { stroke: #ffffff; opacity: 0.5; }
+    .vz-grid line       { stroke: #ffffff; stroke-opacity: 0.07; }
+    .vz-grid .domain    { display: none; }
+
+    /* ── Titles / labels ── */
+    .vz-chart-title {
+      font-size: 20px; font-weight: 700; fill: #2c7bb6;
+      font-family: 'Courier New', Courier, monospace;
+    }
+    .vz-subtitle {
+      font-size: 13px; fill: #ffffff; opacity: 0.8;
+      font-family: 'Courier New', Courier, monospace;
+    }
+    .vz-axis-label {
+      font-size: 16px; font-weight: 700; fill: #ffffff; opacity: 1;
+      font-family: 'Courier New', Courier, monospace;
+    }
+
+    /* ── Event markers ── */
+    .event-line { stroke: #D7EAF7; stroke-width: 1; stroke-dasharray: 4,5; opacity: 0.18; }
+    .event-dot  {
+      fill: #000; stroke: #D7EAF7; stroke-width: 1.5;
+      cursor: pointer; transition: r 0.1s, stroke 0.1s;
+    }
+
+    /* ── Hover helpers ── */
+    .hover-line { stroke: #D7EAF7; stroke-width: 1; opacity: 0.35; pointer-events: none; }
+    .hover-dot  { fill: #2c7bb6; stroke: #000; stroke-width: 2; pointer-events: none; }
+
+    /* ── Brush ── */
+    .brush .selection { fill: #D7EAF7; fill-opacity: 0.12; stroke: #D7EAF7; stroke-width: 1; }
+    .brush .handle    { fill: #D7EAF7; opacity: 0.5; }
+    .brush .overlay   { cursor: crosshair; }
+
+    /* ── Tooltip ── */
+    #tooltip {
+      position: fixed;
+      background: rgba(0,0,0,0.95);
+      border: 1px solid rgba(215,234,247,0.35);
+      color: #D7EAF7;
+      padding: 12px 15px;
+      border-radius: 3px;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 12px; line-height: 1.6;
+      width: 300px;
+      word-wrap: break-word;
+      white-space: normal;
+      opacity: 0;
+      transition: opacity 0.12s;
+      z-index: 200;
+      pointer-events: none;
+    }
+    #tooltip.pinned { border-color: rgba(44,123,182,0.6); }
+    #tooltip .tt-label { display: block; color: #fff; font-weight: 700; font-size: 13px; margin-bottom: 3px; }
+    #tooltip .tt-meta  { color: #2c7bb6; font-size: 12px; }
+    #tooltip .tt-hint  { color: #ffffff; opacity: 0.75; font-size: 12px; margin-top: 6px; }
+    #tooltip .tt-desc  {
+      color: #D7EAF7; font-size: 12px; line-height: 1.7;
+      margin-top: 9px; padding-top: 8px;
+      border-top: 1px solid rgba(215,234,247,0.2);
+      word-wrap: break-word; white-space: normal;
+    }
+    /* Multi-event entries inside a single tooltip */
+    #tooltip .tt-event + .tt-event { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(215,234,247,0.12); }
+    #tooltip .tt-event-label { color: #fff; font-weight: 700; font-size: 12px; display: block; margin-bottom: 2px; }
+    #tooltip .tt-event-desc  { color: #D7EAF7; font-size: 11.5px; line-height: 1.65; }
+
+    /* ── Floating UI buttons ── */
+    #ui-buttons {
+      position: fixed; top: 14px; right: 16px;
+      display: flex; gap: 8px; z-index: 300;
+    }
+    .ui-btn {
+      background: rgba(0,0,0,0.85);
+      border: 1px solid rgba(215,234,247,0.35);
+      color: #D7EAF7;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 11px; padding: 5px 12px;
+      cursor: pointer; border-radius: 2px;
+      transition: border-color 0.1s, color 0.1s;
+      display: none;
+    }
+    .ui-btn.visible { display: inline-block; }
+    .ui-btn.active  { border-color: #2c7bb6; color: #2c7bb6; }
+    .ui-btn:hover   { border-color: #2c7bb6; color: #2c7bb6; }
+
+    body.zoom-mode #chart-wrap { cursor: crosshair; }
+  </style>
+</head>
+<body>
+<div id="chart-wrap"></div>
+<div id="tooltip"></div>
+<div id="ui-buttons">
+  <button class="ui-btn visible" id="btn-zoom">[ select to zoom ]</button>
+  <button class="ui-btn" id="btn-reset">[ reset zoom ]</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script>
+
+// ─────────────────────────────────────────────
+// DATA  (1910–2014)
+// ─────────────────────────────────────────────
+const DATA = [{"year":1910,"sightings":2},{"year":1911,"sightings":0},{"year":1912,"sightings":0},{"year":1913,"sightings":0},{"year":1914,"sightings":0},{"year":1915,"sightings":0},{"year":1916,"sightings":0},{"year":1917,"sightings":0},{"year":1918,"sightings":0},{"year":1919,"sightings":0},{"year":1920,"sightings":1},{"year":1921,"sightings":0},{"year":1922,"sightings":0},{"year":1923,"sightings":0},{"year":1924,"sightings":0},{"year":1925,"sightings":1},{"year":1926,"sightings":0},{"year":1927,"sightings":0},{"year":1928,"sightings":0},{"year":1929,"sightings":1},{"year":1930,"sightings":1},{"year":1931,"sightings":2},{"year":1932,"sightings":0},{"year":1933,"sightings":1},{"year":1934,"sightings":1},{"year":1935,"sightings":0},{"year":1936,"sightings":1},{"year":1937,"sightings":2},{"year":1938,"sightings":0},{"year":1939,"sightings":3},{"year":1940,"sightings":0},{"year":1941,"sightings":1},{"year":1942,"sightings":2},{"year":1943,"sightings":5},{"year":1944,"sightings":6},{"year":1945,"sightings":7},{"year":1946,"sightings":8},{"year":1947,"sightings":35},{"year":1948,"sightings":7},{"year":1949,"sightings":16},{"year":1950,"sightings":25},{"year":1951,"sightings":17},{"year":1952,"sightings":44},{"year":1953,"sightings":31},{"year":1954,"sightings":49},{"year":1955,"sightings":28},{"year":1956,"sightings":43},{"year":1957,"sightings":69},{"year":1958,"sightings":42},{"year":1959,"sightings":47},{"year":1960,"sightings":58},{"year":1961,"sightings":41},{"year":1962,"sightings":65},{"year":1963,"sightings":77},{"year":1964,"sightings":85},{"year":1965,"sightings":176},{"year":1966,"sightings":169},{"year":1967,"sightings":165},{"year":1968,"sightings":199},{"year":1969,"sightings":134},{"year":1970,"sightings":122},{"year":1971,"sightings":110},{"year":1972,"sightings":135},{"year":1973,"sightings":211},{"year":1974,"sightings":240},{"year":1975,"sightings":281},{"year":1976,"sightings":248},{"year":1977,"sightings":232},{"year":1978,"sightings":293},{"year":1979,"sightings":213},{"year":1980,"sightings":215},{"year":1981,"sightings":151},{"year":1982,"sightings":160},{"year":1983,"sightings":130},{"year":1984,"sightings":160},{"year":1985,"sightings":193},{"year":1986,"sightings":167},{"year":1987,"sightings":187},{"year":1988,"sightings":211},{"year":1989,"sightings":221},{"year":1990,"sightings":218},{"year":1991,"sightings":201},{"year":1992,"sightings":215},{"year":1993,"sightings":259},{"year":1994,"sightings":363},{"year":1995,"sightings":1003},{"year":1996,"sightings":720},{"year":1997,"sightings":1115},{"year":1998,"sightings":1581},{"year":1999,"sightings":2525},{"year":2000,"sightings":2426},{"year":2001,"sightings":2635},{"year":2002,"sightings":2654},{"year":2003,"sightings":3199},{"year":2004,"sightings":3543},{"year":2005,"sightings":3511},{"year":2006,"sightings":3146},{"year":2007,"sightings":3737},{"year":2008,"sightings":4308},{"year":2009,"sightings":3953},{"year":2010,"sightings":3827},{"year":2011,"sightings":4734},{"year":2012,"sightings":6750},{"year":2013,"sightings":6481},{"year":2014,"sightings":2096}];
+
+const FULL_DOMAIN = [1910, 2014];
+
+// ─────────────────────────────────────────────
+// CONTEXTUAL EVENTS
+// Years with multiple events are grouped into one dot entry.
+// ─────────────────────────────────────────────
+const EVENTS = [
+  {
+    year: 1938,
+    label: "War of the Worlds Broadcast",
+    events: [
+      { name: "War of the Worlds Broadcast", desc: "Orson Welles' radio dramatization of H.G. Wells' alien invasion story caused widespread public panic across America, demonstrating the public's deep susceptibility to believing in extraterrestrial threats." }
+    ]
+  },
+  {
+    year: 1945,
+    label: "Trinity Nuclear Test",
+    events: [
+      { name: "Trinity Nuclear Test", desc: "The U.S. detonated the world's first atomic bomb at Trinity, New Mexico, beginning the nuclear age and triggering profound public anxieties about advanced technology, including mysterious, unidentified objects appearing in the skies." }
+    ]
+  },
+  {
+    // Three major events all in 1947 — grouped into one dot
+    year: 1947,
+    label: "1947: The UFO Year",
+    events: [
+      { name: "Kenneth Arnold Sighting", desc: "Civilian pilot Kenneth Arnold reported seeing nine crescent-shaped objects flying in formation near Mount Rainier, WA. His account coined the term 'flying saucer' and ignited the modern UFO era in the press and public imagination." },
+      { name: "Roswell Incident", desc: "An unidentified object crashed near Roswell, NM. The U.S. Army briefly announced recovery of a 'flying disc' before retracting the claim, igniting decades of conspiracy theories about recovered alien craft and bodies." },
+      { name: "Cold War Begins", desc: "Escalating U.S.-Soviet tensions launched the Cold War, with intense nuclear and aerospace development on both sides fueling public anxiety about unidentified aerial objects over American skies and potential enemy technology." }
+    ]
+  },
+  {
+    year: 1952,
+    label: "Project Blue Book Begins",
+    events: [
+      { name: "Project Blue Book Begins", desc: "The U.S. Air Force launched Project Blue Book to formally investigate UFO reports. Running until 1969, it catalogued over 12,000 incidents and became the central focal point for both researchers and skeptics of UFO phenomena." }
+    ]
+  },
+  {
+    year: 1953,
+    label: "Robertson Panel",
+    events: [
+      { name: "Robertson Panel", desc: "A CIA-convened panel of scientists concluded UFO reports posed a national security risk through public hysteria, recommending a government debunking campaign that quietly shaped official UFO policy for the next two decades." }
+    ]
+  },
+  {
+    year: 1957,
+    label: "Sputnik & Space Race",
+    events: [
+      { name: "Sputnik & Space Race", desc: "The Soviet Union launched Sputnik, the first artificial satellite, igniting the Space Race and dramatically heightening global fascination with objects in the sky and the scientific possibility of advanced extraterrestrial technology." }
+    ]
+  },
+  {
+    year: 1961,
+    label: "Betty & Barney Hill Abduction",
+    events: [
+      { name: "Betty & Barney Hill Abduction", desc: "The Hills claimed they were stopped on a rural New Hampshire road and examined by alien beings. Their account became the first widely publicized alien abduction case, establishing the template for the modern abduction narrative." }
+    ]
+  },
+  {
+    // Two major events in 1969 — grouped
+    year: 1969,
+    label: "1969: Moon & UFO Milestones",
+    events: [
+      { name: "Condon Report Released", desc: "The University of Colorado's Condon Committee released a controversial report concluding UFO research offered no scientific value, directly leading to the termination of Project Blue Book and the end of official U.S. UFO investigation." },
+      { name: "Moon Landing", desc: "NASA's Apollo 11 mission successfully landed humans on the Moon, cementing global fascination with space, advanced technology, and the fundamental question of whether intelligent life exists elsewhere in the universe." }
+    ]
+  },
+  {
+    year: 1980,
+    label: "Rendlesham Forest Incident",
+    events: [
+      { name: "Rendlesham Forest Incident", desc: "U.S. Air Force personnel near RAF Woodbridge, England reported a multi-night close encounter with a triangular, metallic craft in a forest. Regarded as one of the most credible and thoroughly documented military UFO cases ever recorded." }
+    ]
+  },
+  {
+    year: 1989,
+    label: "Bob Lazar & Area 51 Claims",
+    events: [
+      { name: "Bob Lazar & Area 51 Claims", desc: "Physicist Bob Lazar publicly claimed to have worked on alien spacecraft at a classified facility near Groom Lake (Area 51), propelling the base into popular culture and igniting massive public fascination with government UFO secrecy." }
+    ]
+  },
+  {
+    year: 1993,
+    label: "The X-Files Premieres",
+    events: [
+      { name: "The X-Files Premieres", desc: "Fox's The X-Files became a cultural phenomenon, normalizing UFO conspiracy culture and government cover-up narratives for an entire generation and vastly expanding mainstream awareness and acceptance of UFO claims." }
+    ]
+  },
+  {
+    year: 1994,
+    label: "Internet Goes Mainstream",
+    events: [
+      { name: "Internet Goes Mainstream", desc: "The World Wide Web became publicly accessible, enabling UFO researchers and enthusiasts worldwide to share evidence, coordinate investigation, and challenge official narratives at unprecedented speed and global scale." }
+    ]
+  },
+  {
+    year: 1997,
+    label: "Phoenix Lights",
+    events: [
+      { name: "Phoenix Lights", desc: "Thousands of Arizona and Nevada residents witnessed a massive, slow-moving V-shaped formation of lights over Phoenix. The governor later admitted seeing it, making it one of the most widely observed UFO events in recorded history." }
+    ]
+  },
+  {
+    year: 2001,
+    label: "9/11 Attacks",
+    events: [
+      { name: "9/11 Attacks", desc: "The September 11 attacks shattered public confidence in government transparency and institutions, intensifying longstanding suspicions about systemic cover-ups, including the suppression of UFO and extraterrestrial evidence." }
+    ]
+  },
+  {
+    // Two events in 2004 — grouped
+    year: 2004,
+    label: "2004: Facebook & Nimitz",
+    events: [
+      { name: "Facebook Launched", desc: "Facebook's launch accelerated formation of global UFO communities online, enabling rapid viral dissemination of sighting reports, whistleblower claims, leaked documents, and investigative threads." },
+      { name: "Nimitz UAP Encounter", desc: "U.S. Navy pilots from the USS Nimitz encountered and filmed a tic-tac-shaped unidentified aerial phenomenon off the California coast, performing physics-defying maneuvers, later declassified and officially confirmed by the Pentagon." }
+    ]
+  },
+  {
+    year: 2005,
+    label: "YouTube Goes Mainstream",
+    events: [
+      { name: "YouTube Goes Mainstream", desc: "YouTube enabled unprecedented global sharing of UFO footage, witness testimony, and investigative content, dramatically increasing public engagement and the volume of reported sightings and video documentation." }
+    ]
+  },
+  {
+    year: 2007,
+    label: "iPhone Launch",
+    events: [
+      { name: "iPhone Launch", desc: "The iPhone put high-quality cameras in hundreds of millions of pockets worldwide, leading to a dramatic surge in civilian UFO photo and video evidence captured and disseminated from across the globe." }
+    ]
+  },
+  {
+    year: 2008,
+    label: "Global Financial Crisis",
+    events: [
+      { name: "Global Financial Crisis", desc: "The global financial crisis deepened public distrust of government and elite institutions across the world, amplifying belief in systemic cover-ups, including longstanding claims of suppressed UFO and extraterrestrial evidence." }
+    ]
+  },
+  {
+    year: 2012,
+    label: "2012 Mayan Calendar Phenomenon",
+    events: [
+      { name: "2012 Mayan Calendar Phenomenon", desc: "The Mayan Long Count calendar completed a major cycle on December 21, 2012, which many misinterpreted as a predicted apocalypse. Years of media coverage, dozens of books, and Roland Emmerich's 2009 blockbuster film '2012' primed the public to watch the skies — almost certainly contributing to the record spike in reported UFO sightings that year. The sharp drop in 2013-2014 suggests the surge reflected cultural hysteria more than any change in the sky." }
+    ]
+  },
+];
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+let zoomDomain  = null;
+let zoomMode    = false;
+let pinnedYear  = null;
+let hoveredYear = null;
+
+const tip  = document.getElementById("tooltip");
+const btnZ = document.getElementById("btn-zoom");
+const btnR = document.getElementById("btn-reset");
+
+// Single source of truth for all event dot sizes/colors.
+function syncDotStyles() {
+  d3.selectAll(".event-dot")
+    .attr("r", d => (pinnedYear === d.year || hoveredYear === d.year) ? 8 : 5)
+    .attr("stroke", d => pinnedYear === d.year ? "#2c7bb6" :
+                          hoveredYear === d.year ? "#2c7bb6" : "#D7EAF7");
+}
+
+// ─────────────────────────────────────────────
+// TOOLTIP HELPERS
+// ─────────────────────────────────────────────
+function placeTipAbove(dotPageX, dotPageY) {
+  const th  = tip.offsetHeight;
+  const tw  = tip.offsetWidth;
+  const pad = 14;
+  let lx = dotPageX - tw / 2;
+  let ty = dotPageY - th - pad;
+  lx = Math.max(pad, Math.min(lx, window.innerWidth - tw - pad));
+  if (ty < pad) ty = dotPageY + pad + 8;
+  tip.style.left = lx + "px";
+  tip.style.top  = ty + "px";
+}
+
+function showHoverTip(html, dotPageX, dotPageY) {
+  if (pinnedYear !== null) return;
+  tip.className = "";
+  tip.innerHTML = html;
+  tip.style.opacity = "0";
+  tip.style.left = "0px"; tip.style.top = "0px";
+  requestAnimationFrame(() => { placeTipAbove(dotPageX, dotPageY); tip.style.opacity = "1"; });
+}
+
+function showPinnedTip(d, dotPageX, dotPageY) {
+  pinnedYear = d.year;
+  tip.className = "pinned";
+
+  // Build multi-event content if needed
+  const eventsHtml = d.events.length === 1
+    ? `<div class="tt-desc">${d.events[0].desc}</div>`
+    : d.events.map(ev =>
+        `<div class="tt-event">
+          <span class="tt-event-label">${ev.name}</span>
+          <span class="tt-event-desc">${ev.desc}</span>
+        </div>`
+      ).join("");
+
+  tip.innerHTML =
+    `<span class="tt-label">${d.label}</span>` +
+    `<span class="tt-meta">${d.year} &nbsp;·&nbsp; ${d.sightings} sighting${d.sightings !== 1 ? "s" : ""}</span>` +
+    eventsHtml +
+    `<div class="tt-hint">click dot or anywhere to dismiss</div>`;
+
+  tip.style.opacity = "0";
+  tip.style.left = "0px"; tip.style.top = "0px";
+  requestAnimationFrame(() => { placeTipAbove(dotPageX, dotPageY); tip.style.opacity = "1"; });
+}
+
+function showEventHoverTip(d, dotPageX, dotPageY) {
+  if (pinnedYear !== null) return;
+  const multi = d.events.length > 1 ? ` (${d.events.length} events)` : "";
+  tip.className = "";
+  tip.innerHTML =
+    `<span class="tt-label">${d.label}</span>` +
+    `<span class="tt-meta">${d.year} &nbsp;·&nbsp; ${d.sightings} sighting${d.sightings !== 1 ? "s" : ""}${multi}</span>` +
+    `<div class="tt-hint">click to read description</div>`;
+  tip.style.opacity = "0";
+  tip.style.left = "0px"; tip.style.top = "0px";
+  requestAnimationFrame(() => { placeTipAbove(dotPageX, dotPageY); tip.style.opacity = "1"; });
+}
+
+function hideTip() {
+  if (pinnedYear !== null) return;
+  tip.style.opacity = "0";
+  tip.className = "";
+}
+
+function clearPin() {
+  pinnedYear = null;
+  tip.style.opacity = "0";
+  tip.className = "";
+  syncDotStyles();
+}
+
+document.addEventListener("click", () => {
+  if (pinnedYear !== null) clearPin();
+});
+
+// ─────────────────────────────────────────────
+// ZOOM MODE
+// ─────────────────────────────────────────────
+function setZoomMode(on) {
+  zoomMode = on;
+  document.body.classList.toggle("zoom-mode", on);
+  btnZ.classList.toggle("active", on);
+  btnZ.textContent = on ? "[ cancel zoom ]" : "[ select to zoom ]";
+  render();
+}
+
+btnZ.addEventListener("click", () => setZoomMode(!zoomMode));
+btnR.addEventListener("click", () => {
+  zoomDomain = null;
+  pinnedYear = null;
+  btnR.classList.remove("visible");
+  render();
+});
+
+// ─────────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────────
+function render() {
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+
+  d3.select("#chart-wrap").selectAll("svg").remove();
+  hideTip();
+
+  const margin = { top: 68, right: 50, bottom: 60, left: 76 };
+  const iW = W - margin.left - margin.right;
+  const iH = H - margin.top - margin.bottom;
+
+  const domain = zoomDomain || FULL_DOMAIN;
+
+  const svg = d3.select("#chart-wrap").append("svg")
+    .attr("width", W).attr("height", H)
+    .style("background", "#000");
+
+  // Gradient
+  const defs = svg.append("defs");
+  const grad = defs.append("linearGradient")
+    .attr("id","area-grad").attr("x1","0").attr("y1","0").attr("x2","0").attr("y2","1");
+  grad.append("stop").attr("offset","0%").attr("stop-color","#2c7bb6").attr("stop-opacity", 0.42);
+  grad.append("stop").attr("offset","100%").attr("stop-color","#2c7bb6").attr("stop-opacity", 0.02);
+
+  defs.append("clipPath").attr("id","chart-clip")
+    .append("rect").attr("width", iW).attr("height", iH);
+
+  const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+  const visData = DATA.filter(d => d.year >= domain[0] && d.year <= domain[1]);
+
+  const xScale = d3.scaleLinear().domain(domain).range([0, iW]);
+  const yScale = d3.scaleLinear()
+    .domain([0, d3.max(visData, d => d.sightings) * 1.14 || 10])
+    .range([iH, 0]);
+
+  // Grid
+  g.append("g").attr("class","vz-grid")
+    .call(d3.axisLeft(yScale).ticks(5).tickSize(-iW).tickFormat(""))
+    .call(s => s.select(".domain").remove());
+
+  // Event vertical lines
+  EVENTS
+    .filter(ev => ev.year >= domain[0] && ev.year <= domain[1])
+    .forEach(ev => {
+      g.append("line").attr("class","event-line")
+        .attr("x1", xScale(ev.year)).attr("y1", 0)
+        .attr("x2", xScale(ev.year)).attr("y2", iH);
+    });
+
+  // Area
+  const areaGen = d3.area()
+    .x(d => xScale(d.year)).y0(iH).y1(d => yScale(d.sightings))
+    .curve(d3.curveCatmullRom.alpha(0.5));
+  g.append("path").datum(visData)
+    .attr("clip-path","url(#chart-clip)")
+    .attr("fill","url(#area-grad)").attr("d", areaGen);
+
+  // Line
+  const lineGen = d3.line()
+    .x(d => xScale(d.year)).y(d => yScale(d.sightings))
+    .curve(d3.curveCatmullRom.alpha(0.5));
+  g.append("path").datum(visData)
+    .attr("clip-path","url(#chart-clip)")
+    .attr("class","vz-line").attr("d", lineGen);
+
+  // Axes
+  // Tick interval: 10 years for full/wide view, 5 years when zoomed tight
+  const tickStep   = (domain[1] - domain[0]) > 50 ? 10 : 5;
+  const tickStart  = Math.ceil(domain[0] / tickStep) * tickStep;
+  const tickValues = d3.range(tickStart, domain[1] + 1, tickStep);
+
+  g.append("g").attr("class","vz-axis vz-axis-x")
+    .attr("transform",`translate(0,${iH})`)
+    .call(d3.axisBottom(xScale).tickValues(tickValues).tickFormat(d3.format("d")));
+
+  g.append("g").attr("class","vz-axis vz-axis-y")
+    .call(d3.axisLeft(yScale).ticks(5));
+
+  // Axis labels
+  g.append("text").attr("class","vz-axis-label")
+    .attr("x", iW / 2).attr("y", iH + 50)
+    .attr("text-anchor","middle").text("Year");
+
+  g.append("text").attr("class","vz-axis-label")
+    .attr("transform","rotate(-90)")
+    .attr("x", -iH / 2).attr("y", -60)
+    .attr("text-anchor","middle").text("Sightings per year");
+
+  // Title + subtitle
+  svg.append("text").attr("class","vz-chart-title")
+    .attr("x", margin.left).attr("y", 30)
+    .attr("text-anchor","start").text("UFO Sightings Over Time");
+  svg.append("text").attr("class","vz-subtitle")
+    .attr("x", margin.left).attr("y", 50)
+    .attr("text-anchor","start")
+    .text(`Reported sightings per year (${domain[0]}–${domain[1]})  ·  hover events for context`);
+
+  // ── Hover line & dot ──
+  const hoverLine = g.append("line").attr("class","hover-line")
+    .attr("y1", 0).attr("y2", iH).attr("opacity", 0);
+  const hoverDot = g.append("circle").attr("class","hover-dot")
+    .attr("r", 5).attr("opacity", 0);
+
+  const bisect = d3.bisector(d => d.year).center;
+
+  // ── ZOOM MODE ──
+  if (zoomMode) {
+    const brush = d3.brushX()
+      .extent([[0, 0], [iW, iH]])
+      .on("end", function(event) {
+        if (!event.selection) { setZoomMode(false); return; }
+        const [x0, x1] = event.selection;
+        const d0 = xScale.invert(x0);
+        const d1 = xScale.invert(x1);
+        if (d1 - d0 < 2) { d3.select(this).call(brush.clear); return; }
+        zoomDomain = [Math.floor(d0), Math.ceil(d1)];
+        zoomMode = false;
+        document.body.classList.remove("zoom-mode");
+        btnZ.classList.remove("active");
+        btnZ.textContent = "[ select to zoom ]";
+        btnR.classList.add("visible");
+        render();
+      });
+    const bG = g.append("g").attr("class","brush").call(brush);
+    bG.select(".selection").attr("fill","#D7EAF7").attr("fill-opacity",0.12)
+      .attr("stroke","#D7EAF7").attr("stroke-width",1);
+    return;
+  }
+
+  // ── NORMAL MODE: hover interaction ──
+  svg.append("rect")
+    .attr("x", margin.left).attr("y", margin.top)
+    .attr("width", iW).attr("height", iH)
+    .attr("fill","none").attr("pointer-events","all")
+    .on("mousemove", function(event) {
+      const [mx] = d3.pointer(event, g.node());
+      const yr = xScale.invert(mx);
+      const idx = bisect(visData, yr);
+      const d = visData[Math.max(0, Math.min(idx, visData.length - 1))];
+      if (!d) return;
+      const cx = xScale(d.year), cy = yScale(d.sightings);
+      hoverLine.attr("x1", cx).attr("x2", cx).attr("opacity", 1);
+      hoverDot.attr("cx", cx).attr("cy", cy).attr("opacity", 1);
+      const dotPageX = margin.left + cx, dotPageY = margin.top + cy;
+      showHoverTip(
+        `<span class="tt-meta" style="font-size:13px;font-weight:700;color:#2c7bb6">${d.year}</span><br>` +
+        `<span class="tt-meta">${d.sightings} sighting${d.sightings !== 1 ? "s" : ""}</span>`,
+        dotPageX, dotPageY
+      );
+    })
+    .on("mouseleave", () => {
+      hoverLine.attr("opacity", 0);
+      hoverDot.attr("opacity", 0);
+      if (pinnedYear === null) tip.style.opacity = "0";
+    });
+
+  // ── Event dots ──
+  const evDotData = EVENTS
+    .filter(ev => ev.year >= domain[0] && ev.year <= domain[1])
+    .map(ev => {
+      const match = visData.find(d => d.year === ev.year);
+      return { ...ev, sightings: match ? match.sightings : 0 };
+    });
+
+  svg.selectAll(".event-dot")
+    .data(evDotData)
+    .join("circle")
+    .attr("class","event-dot")
+    .attr("cx", d => margin.left + xScale(d.year))
+    .attr("cy", d => margin.top  + yScale(d.sightings))
+    .attr("r", d => pinnedYear === d.year ? 8 : 5)
+    .attr("stroke", d => pinnedYear === d.year ? "#2c7bb6" : "#D7EAF7")
+    .on("mouseover", function(event, d) {
+      hoveredYear = d.year;
+      syncDotStyles();
+      hoverLine.attr("opacity", 0);
+      hoverDot.attr("opacity", 0);
+      const dotPageX = margin.left + xScale(d.year);
+      const dotPageY = margin.top  + yScale(d.sightings);
+      showEventHoverTip(d, dotPageX, dotPageY);
+    })
+    .on("mouseout", function() {
+      hoveredYear = null;
+      syncDotStyles();
+      hideTip();
+    })
+    .on("click", function(event, d) {
+      event.stopPropagation();
+      hoveredYear = null;
+      const dotPageX = margin.left + xScale(d.year);
+      const dotPageY = margin.top  + yScale(d.sightings);
+      if (pinnedYear === d.year) {
+        pinnedYear = null;
+        tip.style.opacity = "0";
+        tip.className = "";
+      } else {
+        pinnedYear = d.year;
+        showPinnedTip(d, dotPageX, dotPageY);
+      }
+      syncDotStyles();
+    });
+}
+
+// ─────────────────────────────────────────────
+// INIT + RESIZE
+// ─────────────────────────────────────────────
+render();
+
+let rafId;
+window.addEventListener("resize", () => {
+  cancelAnimationFrame(rafId);
+  rafId = requestAnimationFrame(render);
+});
+</script>
+</body>
+</html>

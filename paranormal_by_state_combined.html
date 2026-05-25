@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Paranormal Sightings by State — Combined</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%; overflow: hidden;
+      font-family: 'Courier New', Courier, monospace;
+      background: #000; color: #D7EAF7;
+    }
+
+    /* ── Layout ── */
+    #layout { display: flex; height: 100vh; }
+
+    #left-panel {
+      flex: 1; overflow-y: auto; overflow-x: hidden;
+      padding: 24px 12px 24px 20px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(215,234,247,0.15) transparent;
+    }
+    #left-panel::-webkit-scrollbar { width: 5px; }
+    #left-panel::-webkit-scrollbar-thumb { background: rgba(215,234,247,0.2); border-radius: 3px; }
+
+    #right-panel {
+      width: 280px; min-width: 280px;
+      border-left: 1px solid rgba(215,234,247,0.1);
+      background: rgba(255,255,255,0.018);
+      padding: 24px 20px;
+      display: flex; flex-direction: column; gap: 16px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(215,234,247,0.1) transparent;
+    }
+    #right-panel::-webkit-scrollbar { width: 4px; }
+    #right-panel::-webkit-scrollbar-thumb { background: rgba(215,234,247,0.12); }
+
+    /* ── Typography ── */
+    .page-title {
+      font-size: 18px; font-weight: 700; color: #D7EAF7;
+      line-height: 1.3;
+    }
+    .page-title span.bf { color: #FDAE61; }
+    .page-title span.ufo { color: #2c7bb6; }
+    .page-subtitle {
+      font-size: 11px; color: #ffffff; opacity: 0.55;
+      line-height: 1.55;
+    }
+    .panel-heading {
+      font-size: 10px; font-weight: 700;
+      color: #ffffff; opacity: 0.38;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      margin-bottom: 7px;
+    }
+
+    /* ── Mode toggle (per capita / count) ── */
+    .mode-row { display: flex; gap: 5px; }
+    .mode-btn {
+      flex: 1;
+      background: none;
+      border: 1px solid rgba(215,234,247,0.22);
+      color: rgba(215,234,247,0.45);
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 10px; padding: 6px 4px;
+      cursor: pointer; border-radius: 2px;
+      transition: border-color 0.12s, color 0.12s;
+    }
+    .mode-btn.active { border-color: #D7EAF7; color: #D7EAF7; }
+    .mode-btn:hover:not(.active) {
+      border-color: rgba(215,234,247,0.45);
+      color: rgba(215,234,247,0.75);
+    }
+
+    /* ── Decade filter dropdown ── */
+    #decade-select {
+      width: 100%;
+      background: #000;
+      border: 1px solid rgba(215,234,247,0.3);
+      color: #D7EAF7;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 12px; font-weight: 700;
+      padding: 7px 28px 7px 10px;
+      cursor: pointer; border-radius: 2px;
+      appearance: none; -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23D7EAF7' opacity='.4'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      transition: border-color 0.1s;
+    }
+    #decade-select:focus { outline: none; border-color: rgba(215,234,247,0.7); }
+    #decade-select option { background: #0a0a0a; color: #D7EAF7; }
+
+    /* ── Sort toggle ── */
+    .sort-row { display: flex; gap: 5px; }
+    .sort-btn {
+      flex: 1;
+      background: none;
+      border: 1px solid rgba(215,234,247,0.2);
+      color: rgba(215,234,247,0.4);
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 11px; padding: 5px 0;
+      cursor: pointer; border-radius: 2px;
+      transition: border-color 0.12s, color 0.12s;
+    }
+    .sort-btn.active { border-color: #D7EAF7; color: #D7EAF7; }
+    .sort-btn:hover:not(.active) {
+      border-color: rgba(215,234,247,0.42);
+      color: rgba(215,234,247,0.7);
+    }
+
+    /* ── Reset button ── */
+    #reset-btn {
+      display: none;
+      width: 100%;
+      background: none;
+      border: 1px solid rgba(215,234,247,0.2);
+      color: rgba(215,234,247,0.45);
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 11px; padding: 6px 0;
+      cursor: pointer; border-radius: 2px;
+      transition: border-color 0.12s, color 0.12s;
+    }
+    #reset-btn:hover {
+      border-color: rgba(215,234,247,0.5);
+      color: rgba(215,234,247,0.85);
+    }
+
+    /* ── Divider ── */
+    .divider {
+      border: none;
+      border-top: 1px solid rgba(215,234,247,0.07);
+      margin: 2px 0;
+    }
+
+    /* ── Detail ── */
+    #detail-hint {
+      font-size: 11px; color: #ffffff; opacity: 0.28;
+      line-height: 1.65;
+    }
+    #detail-state-name {
+      font-size: 15px; font-weight: 700; color: #D7EAF7;
+      margin-bottom: 2px;
+    }
+    #detail-totals {
+      font-size: 11px; color: #D7EAF7; opacity: 0.55;
+      margin-bottom: 12px; line-height: 1.7;
+    }
+    .detail-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; opacity: 0.38; margin-bottom: 6px;
+    }
+    .detail-label.bf { color: #FDAE61; opacity: 0.75; }
+    .detail-label.ufo { color: #2c7bb6; opacity: 0.85; margin-top: 12px; }
+
+    /* ── Legend strip ── */
+    #legend-strip {
+      display: flex; gap: 18px; margin-bottom: 6px;
+      font-size: 11px;
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+    /* ── SVG bar classes ── */
+    .bar-bf { fill: #FDAE61; opacity: 0.82; transition: opacity 0.1s; }
+    .bar-ufo { fill: #2c7bb6; opacity: 0.82; transition: opacity 0.1s; }
+    .row-bg { fill: transparent; cursor: pointer; }
+    .row-bg:hover { fill: rgba(255,255,255,0.025); }
+    .state-label {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 11px; fill: #D7EAF7; opacity: 0.72;
+      cursor: pointer;
+    }
+    .val-label {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 11px; fill: #D7EAF7; opacity: 0.6;
+    }
+    .axis-label {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 11px; fill: #D7EAF7; opacity: 0.6;
+    }
+    .axis-line { stroke: rgba(215,234,247,0.18); stroke-width: 1; }
+    .tick-line { stroke: rgba(215,234,247,0.12); stroke-width: 1; }
+
+    /* Selected row highlight */
+    .state-row.selected .bar-bf { opacity: 1; }
+    .state-row.selected .bar-ufo { opacity: 1; }
+    .state-row.selected .state-label { fill: #fff; opacity: 1; }
+    .state-row.selected .row-bg { fill: rgba(255,255,255,0.04); }
+    .state-row:not(.selected) { opacity: 0.85; }
+
+    /* ── Tooltip ── */
+    #tooltip {
+      position: fixed; pointer-events: none;
+      background: rgba(0,0,0,0.92);
+      border: 1px solid rgba(215,234,247,0.18);
+      padding: 9px 13px; border-radius: 3px;
+      font-size: 12px; color: #D7EAF7;
+      white-space: nowrap; z-index: 99;
+      opacity: 0; transition: opacity 0.1s;
+    }
+    #tooltip .tt-state { font-weight: 700; margin-bottom: 5px; font-size: 13px; }
+    #tooltip .tt-bf { color: #FDAE61; }
+    #tooltip .tt-ufo { color: #2c7bb6; }
+  </style>
+</head>
+<body>
+<div id="layout">
+
+  <!-- ── CHART PANEL ── -->
+  <div id="left-panel">
+    <div id="legend-strip">
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#FDAE61"></div>
+        <span style="color:#FDAE61;font-size:11px">Bigfoot</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#2c7bb6"></div>
+        <span style="color:#2c7bb6;font-size:11px">UFO</span>
+      </div>
+    </div>
+    <div id="chart-wrap">
+      <svg id="main-svg"></svg>
+    </div>
+  </div>
+
+  <!-- ── CONTROLS PANEL ── -->
+  <div id="right-panel">
+    <div>
+      <div class="page-title">
+        <span class="bf">Bigfoot</span> &amp; <span class="ufo">UFO</span><br>Sightings by State
+      </div>
+    </div>
+    <div class="page-subtitle">
+      Side-by-side comparison of paranormal sightings across U.S. states. Bigfoot bars extend left; UFO bars extend right. Click any row for a decade breakdown.
+    </div>
+
+    <div>
+      <div class="panel-heading">Display Mode</div>
+      <div class="mode-row">
+        <button class="mode-btn active" id="btn-count">[ total count ]</button>
+        <button class="mode-btn" id="btn-percap">[ per 10K res. ]</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel-heading">Filter by Decade</div>
+      <select id="decade-select">
+        <option value="All">All decades</option>
+        <option value="1910s">1910s</option>
+        <option value="1920s">1920s</option>
+        <option value="1930s">1930s</option>
+        <option value="1940s">1940s</option>
+        <option value="1950s">1950s</option>
+        <option value="1960s">1960s</option>
+        <option value="1970s">1970s</option>
+        <option value="1980s">1980s</option>
+        <option value="1990s">1990s</option>
+        <option value="2000s">2000s</option>
+        <option value="2010s">2010s</option>
+      </select>
+    </div>
+
+    <div>
+      <div class="panel-heading">Sort</div>
+      <div class="sort-row">
+        <button class="sort-btn active" id="btn-count-sort">[ count ]</button>
+        <button class="sort-btn" id="btn-az-sort">[ a–z ]</button>
+      </div>
+    </div>
+
+    <button id="reset-btn">[ reset filters ]</button>
+
+    <hr class="divider">
+
+    <!-- detail section -->
+    <div id="detail-section">
+      <div id="detail-hint">↖ click any state row to see its decade breakdown for both datasets</div>
+      <div id="detail-content" style="display:none">
+        <div id="detail-state-name"></div>
+        <div id="detail-totals"></div>
+        <div class="detail-label bf">▌ Bigfoot by Decade</div>
+        <svg id="bf-detail-svg" style="width:100%;overflow:visible"></svg>
+        <div class="detail-label ufo">▌ UFO by Decade</div>
+        <svg id="ufo-detail-svg" style="width:100%;overflow:visible"></svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script>
+// ─────────────────────────────────────────────────────────────
+// DATA
+// ─────────────────────────────────────────────────────────────
+const BF_COUNT  = {"All":[{"state":"Washington","count":468},{"state":"Florida","count":257},{"state":"California","count":247},{"state":"Ohio","count":240},{"state":"Texas","count":180},{"state":"Illinois","count":177},{"state":"Oregon","count":164},{"state":"Michigan","count":139},{"state":"Missouri","count":114},{"state":"Georgia","count":102},{"state":"Colorado","count":96},{"state":"West Virginia","count":92},{"state":"Kentucky","count":88},{"state":"Alabama","count":81},{"state":"Arkansas","count":79},{"state":"Oklahoma","count":69},{"state":"North Carolina","count":68},{"state":"Wisconsin","count":64},{"state":"Virginia","count":63},{"state":"Tennessee","count":58},{"state":"Arizona","count":51},{"state":"New York","count":49},{"state":"Pennsylvania","count":43},{"state":"Iowa","count":41},{"state":"Kansas","count":39},{"state":"Idaho","count":39},{"state":"Utah","count":37},{"state":"Minnesota","count":37},{"state":"Indiana","count":37},{"state":"New Jersey","count":36},{"state":"Montana","count":34},{"state":"Louisiana","count":29},{"state":"South Carolina","count":25},{"state":"New Mexico","count":22},{"state":"Mississippi","count":19},{"state":"Massachusetts","count":13},{"state":"Nebraska","count":12},{"state":"Wyoming","count":11},{"state":"Maryland","count":10},{"state":"Alaska","count":9},{"state":"Nevada","count":7},{"state":"Connecticut","count":6},{"state":"Rhode Island","count":5},{"state":"South Dakota","count":5},{"state":"New Hampshire","count":5},{"state":"Delaware","count":3},{"state":"North Dakota","count":2},{"state":"Vermont","count":2}],"1920s":[{"state":"Louisiana","count":1},{"state":"Pennsylvania","count":1}],"1930s":[{"state":"Texas","count":2}],"1940s":[{"state":"Washington","count":3},{"state":"California","count":1},{"state":"Florida","count":1},{"state":"Michigan","count":1},{"state":"Oklahoma","count":1},{"state":"Oregon","count":1}],"1950s":[{"state":"California","count":5},{"state":"Kentucky","count":3},{"state":"Ohio","count":3},{"state":"Washington","count":3},{"state":"Missouri","count":2},{"state":"Connecticut","count":1},{"state":"Florida","count":1},{"state":"Georgia","count":1},{"state":"Mississippi","count":1},{"state":"Nebraska","count":1},{"state":"New Jersey","count":1},{"state":"Oregon","count":1},{"state":"Tennessee","count":1},{"state":"Virginia","count":1}],"1960s":[{"state":"California","count":15},{"state":"Washington","count":14},{"state":"Illinois","count":9},{"state":"Michigan","count":7},{"state":"Texas","count":5},{"state":"West Virginia","count":4},{"state":"Florida","count":4},{"state":"Idaho","count":4},{"state":"Missouri","count":4},{"state":"Ohio","count":4},{"state":"Pennsylvania","count":3},{"state":"Georgia","count":3},{"state":"Arkansas","count":2},{"state":"Utah","count":2},{"state":"South Carolina","count":2},{"state":"North Carolina","count":2},{"state":"Oregon","count":2},{"state":"Colorado","count":2},{"state":"Tennessee","count":1},{"state":"Oklahoma","count":1},{"state":"New York","count":1},{"state":"Kansas","count":1},{"state":"Wisconsin","count":1}],"1970s":[{"state":"Washington","count":43},{"state":"Ohio","count":31},{"state":"Oregon","count":28},{"state":"Florida","count":24},{"state":"California","count":22},{"state":"Illinois","count":20},{"state":"Michigan","count":15},{"state":"Texas","count":14},{"state":"Missouri","count":13},{"state":"Georgia","count":11},{"state":"North Carolina","count":10},{"state":"Iowa","count":10},{"state":"Louisiana","count":9},{"state":"Wisconsin","count":8},{"state":"Kentucky","count":8},{"state":"Arkansas","count":8},{"state":"Colorado","count":7},{"state":"Virginia","count":7},{"state":"Mississippi","count":7},{"state":"Kansas","count":7},{"state":"Pennsylvania","count":6},{"state":"New Jersey","count":5},{"state":"Alabama","count":5},{"state":"Utah","count":5},{"state":"Indiana","count":5},{"state":"South Carolina","count":4},{"state":"Tennessee","count":4},{"state":"West Virginia","count":4},{"state":"Montana","count":4},{"state":"Oklahoma","count":4},{"state":"Minnesota","count":4},{"state":"Nevada","count":3},{"state":"Nebraska","count":3},{"state":"Massachusetts","count":3},{"state":"New York","count":2},{"state":"Rhode Island","count":2},{"state":"Idaho","count":2},{"state":"New Hampshire","count":1},{"state":"Arizona","count":1},{"state":"Maryland","count":1},{"state":"Wyoming","count":1}],"1980s":[{"state":"Washington","count":56},{"state":"Ohio","count":40},{"state":"Florida","count":35},{"state":"California","count":29},{"state":"Oregon","count":20},{"state":"Missouri","count":18},{"state":"Tennessee","count":16},{"state":"Michigan","count":14},{"state":"Illinois","count":12},{"state":"Kentucky","count":11},{"state":"Arkansas","count":10},{"state":"Texas","count":10},{"state":"North Carolina","count":10},{"state":"Georgia","count":9},{"state":"Montana","count":8},{"state":"Alabama","count":7},{"state":"Louisiana","count":7},{"state":"Oklahoma","count":6},{"state":"West Virginia","count":6},{"state":"Pennsylvania","count":6},{"state":"Colorado","count":6},{"state":"Iowa","count":5},{"state":"Arizona","count":5},{"state":"Wisconsin","count":5},{"state":"Utah","count":4},{"state":"Idaho","count":4},{"state":"Indiana","count":4},{"state":"Virginia","count":4},{"state":"Minnesota","count":3},{"state":"New York","count":3},{"state":"Mississippi","count":3},{"state":"Kansas","count":3},{"state":"New Mexico","count":2},{"state":"South Carolina","count":2},{"state":"Nevada","count":2},{"state":"Connecticut","count":2},{"state":"Maryland","count":1},{"state":"New Jersey","count":1},{"state":"Nebraska","count":1},{"state":"Wyoming","count":1}],"1990s":[{"state":"Washington","count":83},{"state":"Ohio","count":45},{"state":"California","count":42},{"state":"Oregon","count":33},{"state":"Florida","count":33},{"state":"Colorado","count":22},{"state":"Kentucky","count":17},{"state":"Michigan","count":17},{"state":"Illinois","count":16},{"state":"Missouri","count":15},{"state":"West Virginia","count":14},{"state":"Texas","count":14},{"state":"Georgia","count":12},{"state":"Arkansas","count":12},{"state":"North Carolina","count":12},{"state":"Virginia","count":11},{"state":"Oklahoma","count":10},{"state":"New York","count":9},{"state":"Alabama","count":8},{"state":"Wisconsin","count":7},{"state":"Tennessee","count":6},{"state":"Montana","count":6},{"state":"Indiana","count":6},{"state":"Utah","count":5},{"state":"Arizona","count":5},{"state":"Kansas","count":5},{"state":"New Jersey","count":5},{"state":"Louisiana","count":4},{"state":"South Carolina","count":3},{"state":"Iowa","count":3},{"state":"Maryland","count":3},{"state":"Pennsylvania","count":2},{"state":"Minnesota","count":2},{"state":"Idaho","count":2},{"state":"Nebraska","count":2},{"state":"Mississippi","count":1},{"state":"Rhode Island","count":1},{"state":"Alaska","count":1},{"state":"Massachusetts","count":1},{"state":"Delaware","count":1},{"state":"Wyoming","count":1}],"2000s":[{"state":"Washington","count":205},{"state":"Texas","count":121},{"state":"California","count":117},{"state":"Florida","count":98},{"state":"Ohio","count":80},{"state":"Oregon","count":71},{"state":"Illinois","count":57},{"state":"West Virginia","count":55},{"state":"Michigan","count":50},{"state":"Georgia","count":50},{"state":"Colorado","count":48},{"state":"Oklahoma","count":39},{"state":"Alabama","count":38},{"state":"Arkansas","count":36},{"state":"Missouri","count":36},{"state":"Kentucky","count":31},{"state":"Arizona","count":29},{"state":"Wisconsin","count":27},{"state":"Tennessee","count":26},{"state":"New York","count":26},{"state":"Utah","count":21},{"state":"New Jersey","count":21},{"state":"Idaho","count":20},{"state":"Virginia","count":19},{"state":"North Carolina","count":19},{"state":"Indiana","count":18},{"state":"Minnesota","count":17},{"state":"Pennsylvania","count":17},{"state":"New Mexico","count":16},{"state":"South Carolina","count":14},{"state":"Iowa","count":12},{"state":"Kansas","count":12},{"state":"Montana","count":10},{"state":"Wyoming","count":8},{"state":"Alaska","count":8},{"state":"Louisiana","count":7},{"state":"South Dakota","count":5},{"state":"Mississippi","count":5},{"state":"Massachusetts","count":5},{"state":"Nebraska","count":5},{"state":"New Hampshire","count":3},{"state":"North Dakota","count":2},{"state":"Nevada","count":2},{"state":"Vermont","count":2},{"state":"Maryland","count":2},{"state":"Connecticut","count":2},{"state":"Rhode Island","count":1}],"2010s":[{"state":"Illinois","count":63},{"state":"Washington","count":61},{"state":"Florida","count":61},{"state":"Ohio","count":37},{"state":"Michigan","count":35},{"state":"Missouri","count":26},{"state":"Alabama","count":23},{"state":"Virginia","count":21},{"state":"Kentucky","count":18},{"state":"Wisconsin","count":16},{"state":"Georgia","count":16},{"state":"California","count":16},{"state":"North Carolina","count":15},{"state":"Texas","count":14},{"state":"Minnesota","count":11},{"state":"Iowa","count":11},{"state":"Kansas","count":11},{"state":"Arkansas","count":11},{"state":"Arizona","count":11},{"state":"Colorado","count":11},{"state":"West Virginia","count":9},{"state":"New York","count":8},{"state":"Pennsylvania","count":8},{"state":"Oregon","count":8},{"state":"Oklahoma","count":8},{"state":"Idaho","count":7},{"state":"Montana","count":6},{"state":"New Mexico","count":4},{"state":"Indiana","count":4},{"state":"Tennessee","count":4},{"state":"Massachusetts","count":4},{"state":"Maryland","count":3},{"state":"New Jersey","count":3},{"state":"Mississippi","count":2},{"state":"Delaware","count":2},{"state":"New Hampshire","count":1},{"state":"Connecticut","count":1},{"state":"Rhode Island","count":1},{"state":"Louisiana","count":1}]};
+const UFO_COUNT = {"All":[{"state":"California","count":9624},{"state":"Washington","count":4258},{"state":"Florida","count":4192},{"state":"Texas","count":3671},{"state":"New York","count":3216},{"state":"Arizona","count":2679},{"state":"Illinois","count":2643},{"state":"Pennsylvania","count":2573},{"state":"Ohio","count":2416},{"state":"Michigan","count":2067},{"state":"North Carolina","count":1862},{"state":"Oregon","count":1844},{"state":"Missouri","count":1575},{"state":"New Jersey","count":1505},{"state":"Colorado","count":1500},{"state":"Virginia","count":1389},{"state":"Indiana","count":1378},{"state":"Massachusetts","count":1353},{"state":"Georgia","count":1342},{"state":"Wisconsin","count":1331},{"state":"Tennessee","count":1189},{"state":"Minnesota","count":1080},{"state":"South Carolina","count":1075},{"state":"Connecticut","count":964},{"state":"Kentucky","count":912},{"state":"Maryland","count":911},{"state":"Nevada","count":902},{"state":"New Mexico","count":812},{"state":"Oklahoma","count":764},{"state":"Utah","count":740},{"state":"Iowa","count":707},{"state":"Alabama","count":684},{"state":"Arkansas","count":660},{"state":"Kansas","count":651},{"state":"Maine","count":632},{"state":"Louisiana","count":595},{"state":"Idaho","count":554},{"state":"New Hampshire","count":533},{"state":"Montana","count":507},{"state":"West Virginia","count":484},{"state":"Mississippi","count":411},{"state":"Nebraska","count":404},{"state":"Hawaii","count":350},{"state":"Alaska","count":349},{"state":"Vermont","count":306},{"state":"Rhode Island","count":287},{"state":"Wyoming","count":202},{"state":"South Dakota","count":195},{"state":"Delaware","count":182},{"state":"North Dakota","count":137},{"state":"District of Columbia","count":96}],"1910s":[{"state":"Missouri","count":1},{"state":"Texas","count":1}],"1920s":[{"state":"Illinois","count":1},{"state":"Indiana","count":1},{"state":"Oregon","count":1}],"1930s":[{"state":"New York","count":2},{"state":"Alabama","count":1},{"state":"Alaska","count":1},{"state":"California","count":1},{"state":"Colorado","count":1},{"state":"Iowa","count":1},{"state":"Kansas","count":1},{"state":"North Dakota","count":1},{"state":"Oregon","count":1},{"state":"South Carolina","count":1}],"1940s":[{"state":"California","count":13},{"state":"Texas","count":7},{"state":"New Mexico","count":6},{"state":"New York","count":5},{"state":"Washington","count":5},{"state":"Maryland","count":4},{"state":"Pennsylvania","count":4},{"state":"Alaska","count":3},{"state":"Florida","count":3},{"state":"Illinois","count":3},{"state":"Louisiana","count":3},{"state":"Minnesota","count":3},{"state":"Alabama","count":2},{"state":"Michigan","count":2},{"state":"Tennessee","count":2},{"state":"Virginia","count":2},{"state":"Wisconsin","count":2},{"state":"Arizona","count":1},{"state":"Georgia","count":1},{"state":"Idaho","count":1},{"state":"Indiana","count":1},{"state":"Kentucky","count":1},{"state":"Maine","count":1},{"state":"Mississippi","count":1},{"state":"Missouri","count":1},{"state":"Nebraska","count":1},{"state":"Nevada","count":1},{"state":"North Carolina","count":1},{"state":"North Dakota","count":1},{"state":"Ohio","count":1},{"state":"Oklahoma","count":1},{"state":"Rhode Island","count":1},{"state":"South Carolina","count":1},{"state":"Utah","count":1},{"state":"West Virginia","count":1}],"1950s":[{"state":"California","count":58},{"state":"Texas","count":36},{"state":"New York","count":27},{"state":"Ohio","count":21},{"state":"Washington","count":19},{"state":"Pennsylvania","count":17},{"state":"Indiana","count":14},{"state":"Colorado","count":11},{"state":"Illinois","count":11},{"state":"New Jersey","count":11},{"state":"Florida","count":10},{"state":"Minnesota","count":9},{"state":"Missouri","count":9},{"state":"Maryland","count":8},{"state":"Massachusetts","count":8},{"state":"Michigan","count":8},{"state":"Virginia","count":7},{"state":"Wisconsin","count":7},{"state":"Kentucky","count":6},{"state":"Maine","count":6},{"state":"Oklahoma","count":6},{"state":"West Virginia","count":6},{"state":"Arkansas","count":5},{"state":"Connecticut","count":5},{"state":"Nebraska","count":5},{"state":"Mississippi","count":4},{"state":"Tennessee","count":4},{"state":"Alabama","count":3},{"state":"Alaska","count":3},{"state":"Arizona","count":3},{"state":"Georgia","count":3},{"state":"Idaho","count":3},{"state":"Iowa","count":3},{"state":"Kansas","count":3},{"state":"Louisiana","count":3},{"state":"Nevada","count":3},{"state":"New Hampshire","count":3},{"state":"New Mexico","count":3},{"state":"North Carolina","count":3},{"state":"Oregon","count":3},{"state":"Wyoming","count":3},{"state":"Montana","count":2},{"state":"North Dakota","count":2},{"state":"Rhode Island","count":2},{"state":"Utah","count":2},{"state":"Vermont","count":2},{"state":"Delaware","count":1},{"state":"District of Columbia","count":1},{"state":"South Carolina","count":1},{"state":"South Dakota","count":1}],"1960s":[{"state":"California","count":142},{"state":"New York","count":73},{"state":"Texas","count":62},{"state":"Pennsylvania","count":61},{"state":"Illinois","count":53},{"state":"Ohio","count":51},{"state":"Washington","count":51},{"state":"Florida","count":50},{"state":"New Jersey","count":35},{"state":"Michigan","count":34},{"state":"Massachusetts","count":32},{"state":"Connecticut","count":27},{"state":"Oklahoma","count":26},{"state":"Missouri","count":24},{"state":"Oregon","count":24},{"state":"Indiana","count":23},{"state":"Georgia","count":22},{"state":"Virginia","count":22},{"state":"Arkansas","count":21},{"state":"Kentucky","count":20},{"state":"North Carolina","count":20},{"state":"Maryland","count":18},{"state":"Minnesota","count":17},{"state":"Alabama","count":16},{"state":"South Carolina","count":16},{"state":"Wisconsin","count":16},{"state":"Arizona","count":15},{"state":"Iowa","count":15},{"state":"Kansas","count":15},{"state":"Maine","count":15},{"state":"Colorado","count":14},{"state":"Nevada","count":12},{"state":"Louisiana","count":11},{"state":"Nebraska","count":11},{"state":"Tennessee","count":11},{"state":"Montana","count":10},{"state":"Utah","count":10},{"state":"New Mexico","count":9},{"state":"West Virginia","count":9},{"state":"Alaska","count":8},{"state":"Mississippi","count":7},{"state":"South Dakota","count":7},{"state":"Hawaii","count":6},{"state":"New Hampshire","count":6},{"state":"Delaware","count":4},{"state":"Idaho","count":4},{"state":"Rhode Island","count":4},{"state":"North Dakota","count":3},{"state":"District of Columbia","count":2},{"state":"Vermont","count":2},{"state":"Wyoming","count":2}],"1970s":[{"state":"California","count":260},{"state":"New York","count":132},{"state":"Texas","count":127},{"state":"Florida","count":109},{"state":"Ohio","count":87},{"state":"Pennsylvania","count":85},{"state":"Washington","count":78},{"state":"Michigan","count":77},{"state":"Illinois","count":71},{"state":"Massachusetts","count":54},{"state":"New Jersey","count":53},{"state":"North Carolina","count":52},{"state":"Indiana","count":50},{"state":"Kentucky","count":44},{"state":"Georgia","count":42},{"state":"Connecticut","count":41},{"state":"Missouri","count":41},{"state":"Alabama","count":39},{"state":"Minnesota","count":35},{"state":"Mississippi","count":35},{"state":"Tennessee","count":35},{"state":"Virginia","count":35},{"state":"Wisconsin","count":34},{"state":"Arizona","count":33},{"state":"Colorado","count":33},{"state":"Maryland","count":31},{"state":"Oregon","count":30},{"state":"Louisiana","count":27},{"state":"South Carolina","count":27},{"state":"Maine","count":26},{"state":"New Hampshire","count":24},{"state":"New Mexico","count":23},{"state":"Kansas","count":22},{"state":"Iowa","count":21},{"state":"Oklahoma","count":18},{"state":"West Virginia","count":16},{"state":"Nevada","count":15},{"state":"Arkansas","count":14},{"state":"Rhode Island","count":14},{"state":"Utah","count":14},{"state":"Montana","count":11},{"state":"Hawaii","count":10},{"state":"Idaho","count":10},{"state":"Alaska","count":9},{"state":"North Dakota","count":8},{"state":"Vermont","count":7},{"state":"Nebraska","count":6},{"state":"Wyoming","count":6},{"state":"Delaware","count":4},{"state":"South Dakota","count":3},{"state":"District of Columbia","count":1}],"1980s":[{"state":"California","count":229},{"state":"New York","count":122},{"state":"Texas","count":111},{"state":"Florida","count":89},{"state":"Ohio","count":64},{"state":"North Carolina","count":60},{"state":"Illinois","count":58},{"state":"Washington","count":58},{"state":"Missouri","count":56},{"state":"Michigan","count":54},{"state":"Pennsylvania","count":54},{"state":"Arizona","count":46},{"state":"New Jersey","count":43},{"state":"Virginia","count":43},{"state":"Wisconsin","count":40},{"state":"Georgia","count":37},{"state":"Massachusetts","count":36},{"state":"Connecticut","count":35},{"state":"Oregon","count":35},{"state":"Kentucky","count":32},{"state":"Arkansas","count":27},{"state":"Colorado","count":27},{"state":"Louisiana","count":27},{"state":"Oklahoma","count":26},{"state":"Indiana","count":25},{"state":"Minnesota","count":25},{"state":"Nevada","count":24},{"state":"New Mexico","count":23},{"state":"Tennessee","count":23},{"state":"Maine","count":20},{"state":"Alaska","count":18},{"state":"South Carolina","count":18},{"state":"Utah","count":18},{"state":"West Virginia","count":18},{"state":"Iowa","count":17},{"state":"Kansas","count":17},{"state":"Alabama","count":15},{"state":"Maryland","count":15},{"state":"Nebraska","count":15},{"state":"Mississippi","count":14},{"state":"New Hampshire","count":14},{"state":"Montana","count":12},{"state":"Hawaii","count":10},{"state":"Idaho","count":9},{"state":"Rhode Island","count":7},{"state":"Vermont","count":7},{"state":"Wyoming","count":7},{"state":"Delaware","count":5},{"state":"South Dakota","count":4},{"state":"North Dakota","count":1}],"1990s":[{"state":"California","count":1162},{"state":"Washington","count":744},{"state":"Texas","count":427},{"state":"Arizona","count":361},{"state":"New York","count":357},{"state":"Florida","count":353},{"state":"Ohio","count":306},{"state":"Michigan","count":286},{"state":"Illinois","count":277},{"state":"Oregon","count":276},{"state":"Pennsylvania","count":255},{"state":"Missouri","count":206},{"state":"Colorado","count":185},{"state":"Wisconsin","count":178},{"state":"Nevada","count":160},{"state":"North Carolina","count":155},{"state":"New Jersey","count":149},{"state":"Tennessee","count":143},{"state":"Georgia","count":139},{"state":"Virginia","count":136},{"state":"Indiana","count":132},{"state":"Massachusetts","count":118},{"state":"New Mexico","count":110},{"state":"Minnesota","count":107},{"state":"Utah","count":98},{"state":"Maryland","count":90},{"state":"Kentucky","count":89},{"state":"Arkansas","count":80},{"state":"Alabama","count":79},{"state":"Idaho","count":74},{"state":"Kansas","count":74},{"state":"Montana","count":71},{"state":"Connecticut","count":70},{"state":"Iowa","count":67},{"state":"Maine","count":67},{"state":"South Carolina","count":67},{"state":"Louisiana","count":62},{"state":"Oklahoma","count":60},{"state":"West Virginia","count":51},{"state":"Mississippi","count":50},{"state":"New Hampshire","count":49},{"state":"Alaska","count":48},{"state":"Nebraska","count":37},{"state":"Hawaii","count":34},{"state":"Wyoming","count":30},{"state":"South Dakota","count":27},{"state":"Rhode Island","count":25},{"state":"North Dakota","count":23},{"state":"Delaware","count":19},{"state":"Vermont","count":14},{"state":"District of Columbia","count":6}],"2000s":[{"state":"California","count":5016},{"state":"Washington","count":1995},{"state":"Texas","count":1938},{"state":"Florida","count":1917},{"state":"New York","count":1466},{"state":"Arizona","count":1446},{"state":"Illinois","count":1335},{"state":"Pennsylvania","count":1144},{"state":"Ohio","count":972},{"state":"Michigan","count":932},{"state":"Oregon","count":897},{"state":"North Carolina","count":793},{"state":"Colorado","count":780},{"state":"New Jersey","count":716},{"state":"Missouri","count":714},{"state":"Indiana","count":669},{"state":"Georgia","count":640},{"state":"Virginia","count":603},{"state":"Massachusetts","count":558},{"state":"Tennessee","count":551},{"state":"Wisconsin","count":550},{"state":"Minnesota","count":484},{"state":"Nevada","count":439},{"state":"Kentucky","count":428},{"state":"South Carolina","count":412},{"state":"New Mexico","count":400},{"state":"Maryland","count":387},{"state":"Oklahoma","count":368},{"state":"Connecticut","count":366},{"state":"Arkansas","count":322},{"state":"Iowa","count":322},{"state":"Kansas","count":314},{"state":"Alabama","count":297},{"state":"Louisiana","count":294},{"state":"Utah","count":291},{"state":"Maine","count":245},{"state":"New Hampshire","count":228},{"state":"Idaho","count":218},{"state":"West Virginia","count":207},{"state":"Montana","count":198},{"state":"Nebraska","count":197},{"state":"Mississippi","count":180},{"state":"Hawaii","count":143},{"state":"Rhode Island","count":123},{"state":"Alaska","count":117},{"state":"Vermont","count":116},{"state":"Wyoming","count":92},{"state":"South Dakota","count":78},{"state":"Delaware","count":77},{"state":"North Dakota","count":66},{"state":"District of Columbia","count":56}],"2010s":[{"state":"California","count":2743},{"state":"Florida","count":1661},{"state":"Washington","count":1308},{"state":"New York","count":1032},{"state":"Texas","count":962},{"state":"Pennsylvania","count":953},{"state":"Ohio","count":914},{"state":"Illinois","count":834},{"state":"North Carolina","count":778},{"state":"Arizona","count":774},{"state":"Michigan","count":674},{"state":"Oregon","count":577},{"state":"Massachusetts","count":547},{"state":"Virginia","count":541},{"state":"South Carolina","count":532},{"state":"Missouri","count":523},{"state":"Wisconsin","count":504},{"state":"New Jersey","count":498},{"state":"Indiana","count":463},{"state":"Georgia","count":458},{"state":"Colorado","count":449},{"state":"Connecticut","count":420},{"state":"Tennessee","count":420},{"state":"Minnesota","count":400},{"state":"Maryland","count":358},{"state":"Utah","count":306},{"state":"Kentucky","count":292},{"state":"Iowa","count":261},{"state":"Oklahoma","count":259},{"state":"Maine","count":252},{"state":"Nevada","count":248},{"state":"New Mexico","count":238},{"state":"Idaho","count":235},{"state":"Alabama","count":232},{"state":"New Hampshire","count":209},{"state":"Kansas","count":205},{"state":"Montana","count":203},{"state":"Arkansas","count":191},{"state":"West Virginia","count":176},{"state":"Louisiana","count":168},{"state":"Vermont","count":158},{"state":"Hawaii","count":147},{"state":"Alaska","count":142},{"state":"Nebraska","count":132},{"state":"Mississippi","count":120},{"state":"Rhode Island","count":111},{"state":"South Dakota","count":75},{"state":"Delaware","count":72},{"state":"Wyoming","count":62},{"state":"North Dakota","count":32},{"state":"District of Columbia","count":30}]};
+const BF_DETAIL  = {"Alabama":{"1920s":0,"1930s":0,"1940s":0,"1950s":0,"1960s":0,"1970s":5,"1980s":7,"1990s":8,"2000s":38,"2010s":23},"Alaska":{"1920s":0,"1930s":0,"1940s":0,"1950s":0,"1960s":0,"1970s":0,"1980s":0,"1990s":1,"2000s":8,"2010s":0},"Arizona":{"1920s":0,"1930s":0,"1940s":0,"1950s":0,"1960s":0,"1970s":1,"1980s":5,"1990s":5,"2000s":29,"2010s":11},"Arkansas":{"1920s":0,"1930s":0,"1940s":0,"1950s":0,"1960s":2,"1970s":8,"1980s":10,"1990s":12,"2000s":36,"2010s":11},"California":{"1920s":0,"1930s":0,"1940s":1,"1950s":5,"1960s":15,"1970s":22,"1980s":29,"1990s":42,"2000s":117,"2010s":16},"Colorado":{"1920s":0,"1930s":0,"1940s":0,"1950s":0,"1960s":2,"1970s":7,"1980s":6,"1990s":22,"2000s":48,"2010s":11},"Connecticut":{"1920s":0,"1930s":0,"1940s":0,"1950s":1,"1960s":0,"1970s":0,"1980s":2,"1990s":0,"2000s":2,"2010s":1},"Delaware":{"1920s":0,"1930s":0,"1940s":0,"1950s":0,"1960s":0,"1970s":0,"1980s":0,"1990s":1,"2000s":0,"2010s":2},"Florida":{"1920s":0,"1930s":0,"1940s":1,"1950s":1,"1960s":4,"1970s":24,"1980s":35,"1990s":33,"2000s":98,"2010s":61},"Georgia":{"1920s":0,"1930s":0,"1940s":0,"1950s":1,"1960s":3,"1970s":11,"1980s":9,"1990s":12,"2000s":50,"2010s":16},"Idaho":{"1920s":0,"1930s":0,"1940s":0,"1950s":0,"1960s":4,"1970s":2,"1980s":4,"1990s":2,"2000s":20,"2010s":7},"Illinois":{"1920s":0,"1930s":0,"1940s":0,"1950s":0,"1960s":9,"1970s":20,"1980s":12,"1990s":16,"2000s":57,"2010s":63},"Indiana":{"1920s":0,"1930s":0,"1940s":0,"1950s":0,"1960s":0,"1970s":5,"1980s":4,"1990s":6,"2000s":18,"2010s":4},"Iowa":{"1920s":0,"1930s":0,"1940s":0,"1950s":0,"1960s":0,"1970s":10,"1980s":5,"1990s":3,"2000s":12,"2010s":11},"Kansas":{"1920s":0,"1930s":0,"1940s":0,"1950s":0,"1960s":1,"1970s":7,"1980s":3,"1990s":5,"2000s":12,"2010s":11},"Kentucky":{"1920s":0,"1930s":0,"1940s":0,"1950s":3,"1960s":0,"1970s":8,"1980s":11,"1990s":17,"2000s":31,"2010s":18},"Louisiana":{"1920s":1,"1930s":0,"1940s":0,"1950s":0,"1960s":0,"1970s":9,"1980s":7,"1990s":4,"2000s":7,"2010s":1},"Maryland":{"1920s":0,"1930s":0,"1940s":0,"1950s":0,"1960s":0,"1970s":1,"1980s":1,"1990s":3,"2000s":2,"2010s":3},"Massachusetts":{"1920s":0,"1930s":0,"1940s":0,"1950s":0,"1960s":0,"1970s":3,"1980s":0,"1990s":1,"2000s":5,"2010s":4},"Michigan":{"1920s":0,"1930s":0,"1940s":1,"1950s":0,"1960s":7,"1970s":15,"1980s":14,"1990s":17,"2000s":50,"2010s":35},"Minnesota":{"1920s":0,"1930s":0,"1940s":0,"1950s":0,"1960s":0,"1970s":4,"1980s":3,"1990s":2,"2000s":17,"2010s":11},"Mississippi":{"1920s":0,"1930s":0,"1940s":0,"1950s":1,"1960s":0,"1970s":7,"1980s":3,"1990s":1,"2000s":5,"2010s":2},"Missouri":{"1920s":0,"1930s":0,"1940s":0,"1950s":2,"1960s":4,"1970s":13,"1980s":18,"1990s":15,"2000s":36,"2010s":26},"Montana":{"1920s":0,"1930s":0,"1940s":0,"1950s":0,"1960s":0,"1970s":4,"1980s":8,"1990s":6,"2000s":10,"2010s":6},"Nebraska":{"1920s":0,"1930s":0,"1940s":0,"1950s":1,"1960s":0,"1970s":3,"1980s":1,"1990s":2,"2000s":5,"2010s":0},"Nevada":{"1920s":0,"1930s":0,"1940s":0,"1950s":0,"1960s":0,"1970s":3,"1980s":2,"1990s":0,"2000s":2,"2010s":0},"New Hampshire":{"1920s":0,"1930s":0,"1940s":0,"1950s":0,"1960s":0,"1970s":1,"1980s":0,"1990s":0,"2000s":3,"2010s":1},"New Jersey":{"1920s":0,"1930s":0,"1940s":0,"1950s":1,"1960s":0,"1970s":5,"1980s":1,"1990s":5,"2000s":21,"2010s":3},"New Mexico":{"1920s":0,"1930s":0,"1940s":0,"1950s":0,"1960s":0,"1970s":0,"1980s":2,"1990s":0,"2000s":16,"2010s":4},"New York":{"1920s":0,"1930s":0,"1940s":0,"1950s":0,"1960s":1,"1970s":2,"1980s":3,"1990s":9,"2000s":26,"2010s":8},"North Carolina":{"1920s":0,"1930s":0,"1940s":0,"1950s":0,"1960s":2,"1970s":10,"1980s":10,"1990s":12,"2000s":19,"2010s":15},"North Dakota":{"1920s":0,"1930s":0,"1940s":0,"1950s":0,"1960s":0,"1970s":0,"1980s":0,"1990s":0,"2000s":2,"2010s":0},"Ohio":{"1920s":0,"1930s":0,"1940s":0,"1950s":3,"1960s":4,"1970s":31,"1980s":40,"1990s":45,"2000s":80,"2010s":37},"Oklahoma":{"1920s":0,"1930s":0,"1940s":1,"1950s":0,"1960s":1,"1970s":4,"1980s":6,"1990s":10,"2000s":39,"2010s":8},"Oregon":{"1920s":0,"1930s":0,"1940s":1,"1950s":1,"1960s":2,"1970s":28,"1980s":20,"1990s":33,"2000s":71,"2010s":8},"Pennsylvania":{"1920s":1,"1930s":0,"1940s":0,"1950s":0,"1960s":3,"1970s":6,"1980s":6,"1990s":2,"2000s":17,"2010s":8},"Rhode Island":{"1920s":0,"1930s":0,"1940s":0,"1950s":0,"1960s":0,"1970s":2,"1980s":0,"1990s":1,"2000s":1,"2010s":1},"South Carolina":{"1920s":0,"1930s":0,"1940s":0,"1950s":0,"1960s":2,"1970s":4,"1980s":2,"1990s":3,"2000s":14,"2010s":0},"South Dakota":{"1920s":0,"1930s":0,"1940s":0,"1950s":0,"1960s":0,"1970s":0,"1980s":0,"1990s":0,"2000s":5,"2010s":0},"Tennessee":{"1920s":0,"1930s":0,"1940s":0,"1950s":1,"1960s":1,"1970s":4,"1980s":16,"1990s":6,"2000s":26,"2010s":4},"Texas":{"1920s":0,"1930s":2,"1940s":0,"1950s":0,"1960s":5,"1970s":14,"1980s":10,"1990s":14,"2000s":121,"2010s":14},"Utah":{"1920s":0,"1930s":0,"1940s":0,"1950s":0,"1960s":2,"1970s":5,"1980s":4,"1990s":5,"2000s":21,"2010s":0},"Vermont":{"1920s":0,"1930s":0,"1940s":0,"1950s":0,"1960s":0,"1970s":0,"1980s":0,"1990s":0,"2000s":2,"2010s":0},"Virginia":{"1920s":0,"1930s":0,"1940s":0,"1950s":1,"1960s":0,"1970s":7,"1980s":4,"1990s":11,"2000s":19,"2010s":21},"Washington":{"1920s":0,"1930s":0,"1940s":3,"1950s":3,"1960s":14,"1970s":43,"1980s":56,"1990s":83,"2000s":205,"2010s":61},"West Virginia":{"1920s":0,"1930s":0,"1940s":0,"1950s":0,"1960s":4,"1970s":4,"1980s":6,"1990s":14,"2000s":55,"2010s":9},"Wisconsin":{"1920s":0,"1930s":0,"1940s":0,"1950s":0,"1960s":1,"1970s":8,"1980s":5,"1990s":7,"2000s":27,"2010s":16},"Wyoming":{"1920s":0,"1930s":0,"1940s":0,"1950s":0,"1960s":0,"1970s":1,"1980s":1,"1990s":1,"2000s":8,"2010s":0}};
+const UFO_DETAIL = {"Alabama":{"1910s":0,"1920s":0,"1930s":1,"1940s":2,"1950s":3,"1960s":16,"1970s":39,"1980s":15,"1990s":79,"2000s":297,"2010s":232},"Alaska":{"1910s":0,"1920s":0,"1930s":1,"1940s":3,"1950s":3,"1960s":8,"1970s":9,"1980s":18,"1990s":48,"2000s":117,"2010s":142},"Arizona":{"1910s":0,"1920s":0,"1930s":0,"1940s":1,"1950s":3,"1960s":15,"1970s":33,"1980s":46,"1990s":361,"2000s":1446,"2010s":774},"Arkansas":{"1910s":0,"1920s":0,"1930s":0,"1940s":0,"1950s":5,"1960s":21,"1970s":14,"1980s":27,"1990s":80,"2000s":322,"2010s":191},"California":{"1910s":0,"1920s":0,"1930s":1,"1940s":13,"1950s":58,"1960s":142,"1970s":260,"1980s":229,"1990s":1162,"2000s":5016,"2010s":2743},"Colorado":{"1910s":0,"1920s":0,"1930s":1,"1940s":0,"1950s":11,"1960s":14,"1970s":33,"1980s":27,"1990s":185,"2000s":780,"2010s":449},"Connecticut":{"1910s":0,"1920s":0,"1930s":0,"1940s":0,"1950s":5,"1960s":27,"1970s":41,"1980s":35,"1990s":70,"2000s":366,"2010s":420},"Delaware":{"1910s":0,"1920s":0,"1930s":0,"1940s":0,"1950s":1,"1960s":4,"1970s":4,"1980s":5,"1990s":19,"2000s":77,"2010s":72},"District of Columbia":{"1910s":0,"1920s":0,"1930s":0,"1940s":0,"1950s":1,"1960s":2,"1970s":1,"1980s":0,"1990s":6,"2000s":56,"2010s":30},"Florida":{"1910s":0,"1920s":0,"1930s":0,"1940s":3,"1950s":10,"1960s":50,"1970s":109,"1980s":89,"1990s":353,"2000s":1917,"2010s":1661},"Georgia":{"1910s":0,"1920s":0,"1930s":0,"1940s":1,"1950s":3,"1960s":22,"1970s":42,"1980s":37,"1990s":139,"2000s":640,"2010s":458},"Hawaii":{"1910s":0,"1920s":0,"1930s":0,"1940s":0,"1950s":0,"1960s":6,"1970s":10,"1980s":10,"1990s":34,"2000s":143,"2010s":147},"Idaho":{"1910s":0,"1920s":0,"1930s":0,"1940s":1,"1950s":3,"1960s":4,"1970s":10,"1980s":9,"1990s":74,"2000s":218,"2010s":235},"Illinois":{"1910s":0,"1920s":1,"1930s":0,"1940s":3,"1950s":11,"1960s":53,"1970s":71,"1980s":58,"1990s":277,"2000s":1335,"2010s":834},"Indiana":{"1910s":0,"1920s":1,"1930s":0,"1940s":1,"1950s":14,"1960s":23,"1970s":50,"1980s":25,"1990s":132,"2000s":669,"2010s":463},"Iowa":{"1910s":0,"1920s":0,"1930s":1,"1940s":0,"1950s":3,"1960s":15,"1970s":21,"1980s":17,"1990s":67,"2000s":322,"2010s":261},"Kansas":{"1910s":0,"1920s":0,"1930s":1,"1940s":0,"1950s":3,"1960s":15,"1970s":22,"1980s":17,"1990s":74,"2000s":314,"2010s":205},"Kentucky":{"1910s":0,"1920s":0,"1930s":0,"1940s":1,"1950s":6,"1960s":20,"1970s":44,"1980s":32,"1990s":89,"2000s":428,"2010s":292},"Louisiana":{"1910s":0,"1920s":0,"1930s":0,"1940s":3,"1950s":3,"1960s":11,"1970s":27,"1980s":27,"1990s":62,"2000s":294,"2010s":168},"Maine":{"1910s":0,"1920s":0,"1930s":0,"1940s":1,"1950s":6,"1960s":15,"1970s":26,"1980s":20,"1990s":67,"2000s":245,"2010s":252},"Maryland":{"1910s":0,"1920s":0,"1930s":0,"1940s":4,"1950s":8,"1960s":18,"1970s":31,"1980s":15,"1990s":90,"2000s":387,"2010s":358},"Massachusetts":{"1910s":0,"1920s":0,"1930s":0,"1940s":0,"1950s":8,"1960s":32,"1970s":54,"1980s":36,"1990s":118,"2000s":558,"2010s":547},"Michigan":{"1910s":0,"1920s":0,"1930s":0,"1940s":2,"1950s":8,"1960s":34,"1970s":77,"1980s":54,"1990s":286,"2000s":932,"2010s":674},"Minnesota":{"1910s":0,"1920s":0,"1930s":0,"1940s":3,"1950s":9,"1960s":17,"1970s":35,"1980s":25,"1990s":107,"2000s":484,"2010s":400},"Mississippi":{"1910s":0,"1920s":0,"1930s":0,"1940s":1,"1950s":4,"1960s":7,"1970s":35,"1980s":14,"1990s":50,"2000s":180,"2010s":120},"Missouri":{"1910s":1,"1920s":0,"1930s":0,"1940s":1,"1950s":9,"1960s":24,"1970s":41,"1980s":56,"1990s":206,"2000s":714,"2010s":523},"Montana":{"1910s":0,"1920s":0,"1930s":0,"1940s":0,"1950s":2,"1960s":10,"1970s":11,"1980s":12,"1990s":71,"2000s":198,"2010s":203},"Nebraska":{"1910s":0,"1920s":0,"1930s":0,"1940s":1,"1950s":5,"1960s":11,"1970s":6,"1980s":15,"1990s":37,"2000s":197,"2010s":132},"Nevada":{"1910s":0,"1920s":0,"1930s":0,"1940s":1,"1950s":3,"1960s":12,"1970s":15,"1980s":24,"1990s":160,"2000s":439,"2010s":248},"New Hampshire":{"1910s":0,"1920s":0,"1930s":0,"1940s":0,"1950s":3,"1960s":6,"1970s":24,"1980s":14,"1990s":49,"2000s":228,"2010s":209},"New Jersey":{"1910s":0,"1920s":0,"1930s":0,"1940s":0,"1950s":11,"1960s":35,"1970s":53,"1980s":43,"1990s":149,"2000s":716,"2010s":498},"New Mexico":{"1910s":0,"1920s":0,"1930s":0,"1940s":6,"1950s":3,"1960s":9,"1970s":23,"1980s":23,"1990s":110,"2000s":400,"2010s":238},"New York":{"1910s":0,"1920s":0,"1930s":2,"1940s":5,"1950s":27,"1960s":73,"1970s":132,"1980s":122,"1990s":357,"2000s":1466,"2010s":1032},"North Carolina":{"1910s":0,"1920s":0,"1930s":0,"1940s":1,"1950s":3,"1960s":20,"1970s":52,"1980s":60,"1990s":155,"2000s":793,"2010s":778},"North Dakota":{"1910s":0,"1920s":0,"1930s":1,"1940s":1,"1950s":2,"1960s":3,"1970s":8,"1980s":1,"1990s":23,"2000s":66,"2010s":32},"Ohio":{"1910s":0,"1920s":0,"1930s":0,"1940s":1,"1950s":21,"1960s":51,"1970s":87,"1980s":64,"1990s":306,"2000s":972,"2010s":914},"Oklahoma":{"1910s":0,"1920s":0,"1930s":0,"1940s":1,"1950s":6,"1960s":26,"1970s":18,"1980s":26,"1990s":60,"2000s":368,"2010s":259},"Oregon":{"1910s":0,"1920s":1,"1930s":1,"1940s":0,"1950s":3,"1960s":24,"1970s":30,"1980s":35,"1990s":276,"2000s":897,"2010s":577},"Pennsylvania":{"1910s":0,"1920s":0,"1930s":0,"1940s":4,"1950s":17,"1960s":61,"1970s":85,"1980s":54,"1990s":255,"2000s":1144,"2010s":953},"Rhode Island":{"1910s":0,"1920s":0,"1930s":0,"1940s":1,"1950s":2,"1960s":4,"1970s":14,"1980s":7,"1990s":25,"2000s":123,"2010s":111},"South Carolina":{"1910s":0,"1920s":0,"1930s":1,"1940s":1,"1950s":1,"1960s":16,"1970s":27,"1980s":18,"1990s":67,"2000s":412,"2010s":532},"South Dakota":{"1910s":0,"1920s":0,"1930s":0,"1940s":0,"1950s":1,"1960s":7,"1970s":3,"1980s":4,"1990s":27,"2000s":78,"2010s":75},"Tennessee":{"1910s":0,"1920s":0,"1930s":0,"1940s":2,"1950s":4,"1960s":11,"1970s":35,"1980s":23,"1990s":143,"2000s":551,"2010s":420},"Texas":{"1910s":1,"1920s":0,"1930s":0,"1940s":7,"1950s":36,"1960s":62,"1970s":127,"1980s":111,"1990s":427,"2000s":1938,"2010s":962},"Utah":{"1910s":0,"1920s":0,"1930s":0,"1940s":1,"1950s":2,"1960s":10,"1970s":14,"1980s":18,"1990s":98,"2000s":291,"2010s":306},"Vermont":{"1910s":0,"1920s":0,"1930s":0,"1940s":0,"1950s":2,"1960s":2,"1970s":7,"1980s":7,"1990s":14,"2000s":116,"2010s":158},"Virginia":{"1910s":0,"1920s":0,"1930s":0,"1940s":2,"1950s":7,"1960s":22,"1970s":35,"1980s":43,"1990s":136,"2000s":603,"2010s":541},"Washington":{"1910s":0,"1920s":0,"1930s":0,"1940s":5,"1950s":19,"1960s":51,"1970s":78,"1980s":58,"1990s":744,"2000s":1995,"2010s":1308},"West Virginia":{"1910s":0,"1920s":0,"1930s":0,"1940s":1,"1950s":6,"1960s":9,"1970s":16,"1980s":18,"1990s":51,"2000s":207,"2010s":176},"Wisconsin":{"1910s":0,"1920s":0,"1930s":0,"1940s":2,"1950s":7,"1960s":16,"1970s":34,"1980s":40,"1990s":178,"2000s":550,"2010s":504},"Wyoming":{"1910s":0,"1920s":0,"1930s":0,"1940s":0,"1950s":3,"1960s":2,"1970s":6,"1980s":7,"1990s":30,"2000s":92,"2010s":62}};
+const UFO_PC = {"Alaska":{"1910s":0.0,"1920s":0.0,"1930s":0.1687,"1940s":0.4137,"1950s":0.2332,"1960s":0.3537,"1970s":0.2996,"1980s":0.4728,"1990s":0.8727,"2000s":1.8662,"2010s":1.9994,"All":6.68},"Alabama":{"1910s":0.0,"1920s":0.0,"1930s":0.0038,"1940s":0.0071,"1950s":0.0098,"1960s":0.049,"1970s":0.1132,"1980s":0.0385,"1990s":0.1955,"2000s":0.6679,"2010s":0.4854,"All":1.5702},"Arkansas":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0262,"1960s":0.1176,"1970s":0.0728,"1980s":0.1181,"1990s":0.3403,"2000s":1.2045,"2010s":0.655,"All":2.5345},"Arizona":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.02,"1950s":0.04,"1960s":0.1152,"1970s":0.1864,"1980s":0.1692,"1990s":0.9849,"2000s":2.8184,"2010s":1.2109,"All":5.545},"California":{"1910s":0.0,"1920s":0.0,"1930s":0.0018,"1940s":0.0188,"1950s":0.0548,"1960s":0.0903,"1970s":0.1303,"1980s":0.0968,"1990s":0.3905,"2000s":1.4809,"2010s":0.7363,"All":3.0005},"Colorado":{"1910s":0.0,"1920s":0.0,"1930s":0.0097,"1940s":0.0,"1950s":0.083,"1960s":0.0798,"1970s":0.1495,"1980s":0.0934,"1990s":0.5616,"2000s":1.8134,"2010s":0.8928,"All":3.6832},"Connecticut":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0249,"1960s":0.1065,"1970s":0.1352,"1980s":0.1126,"1990s":0.213,"2000s":1.0747,"2010s":1.1751,"All":2.842},"District of Columbia":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0125,"1960s":0.0262,"1970s":0.0132,"1980s":0.0,"1990s":0.0989,"2000s":0.9789,"2010s":0.4986,"All":1.6283},"Delaware":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0314,"1960s":0.0896,"1970s":0.073,"1980s":0.0841,"1990s":0.2852,"2000s":0.9826,"2010s":0.8018,"All":2.3477},"Florida":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0158,"1950s":0.0361,"1960s":0.101,"1970s":0.1605,"1980s":0.0913,"1990s":0.2728,"2000s":1.1995,"2010s":0.8835,"All":2.7605},"Georgia":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0032,"1950s":0.0087,"1960s":0.0558,"1970s":0.0915,"1980s":0.0677,"1990s":0.2146,"2000s":0.7818,"2010s":0.4728,"All":1.6961},"Hawaii":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0948,"1970s":0.1301,"1980s":0.1037,"1990s":0.3068,"2000s":1.1803,"2010s":1.0806,"All":2.8963},"Iowa":{"1910s":0.0,"1920s":0.0,"1930s":0.0041,"1940s":0.0,"1950s":0.0115,"1960s":0.0544,"1970s":0.0744,"1980s":0.0583,"1990s":0.2413,"2000s":1.1004,"2010s":0.8568,"All":2.4012},"Idaho":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0191,"1950s":0.051,"1960s":0.06,"1970s":0.1403,"1980s":0.0954,"1990s":0.735,"2000s":1.6848,"2010s":1.4991,"All":4.2847},"Illinois":{"1910s":0.0,"1920s":0.0015,"1930s":0.0,"1940s":0.0038,"1950s":0.0126,"1960s":0.0526,"1970s":0.0639,"1980s":0.0508,"1990s":0.2423,"2000s":1.0749,"2010s":0.65,"All":2.1524},"Indiana":{"1910s":0.0,"1920s":0.0034,"1930s":0.0,"1940s":0.0029,"1950s":0.0356,"1960s":0.0493,"1970s":0.0963,"1980s":0.0455,"1990s":0.2381,"2000s":1.1002,"2010s":0.7141,"All":2.2854},"Kansas":{"1910s":0.0,"1920s":0.0,"1930s":0.0053,"1940s":0.0,"1950s":0.0158,"1960s":0.0689,"1970s":0.0979,"1980s":0.0719,"1990s":0.2987,"2000s":1.168,"2010s":0.7185,"All":2.445},"Kentucky":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0035,"1950s":0.0204,"1960s":0.0658,"1970s":0.1367,"1980s":0.0874,"1990s":0.2415,"2000s":1.0589,"2010s":0.6729,"All":2.2871},"Louisiana":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0127,"1950s":0.0112,"1960s":0.0338,"1970s":0.0742,"1980s":0.0642,"1990s":0.1469,"2000s":0.6579,"2010s":0.3706,"All":1.3715},"Massachusetts":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0171,"1960s":0.0622,"1970s":0.0949,"1980s":0.0628,"1990s":0.1961,"2000s":0.8789,"2010s":0.8354,"All":2.1474},"Maryland":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.022,"1950s":0.0341,"1960s":0.0581,"1970s":0.079,"1980s":0.0356,"1990s":0.1882,"2000s":0.7307,"2010s":0.6201,"All":1.7678},"Maine":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0118,"1950s":0.0657,"1960s":0.1548,"1970s":0.2621,"1980s":0.1778,"1990s":0.5456,"2000s":1.9217,"2010s":1.8971,"All":5.0366},"Michigan":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0038,"1950s":0.0126,"1960s":0.0435,"1970s":0.0868,"1980s":0.0583,"1990s":0.3077,"2000s":0.9378,"2010s":0.6819,"All":2.1324},"Minnesota":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0107,"1950s":0.0302,"1960s":0.0498,"1970s":0.092,"1980s":0.0613,"1990s":0.2446,"2000s":0.9838,"2010s":0.7542,"All":2.2266},"Missouri":{"1910s":0.003,"1920s":0.0,"1930s":0.0,"1940s":0.0026,"1950s":0.0228,"1960s":0.0556,"1970s":0.0877,"1980s":0.1139,"1990s":0.4026,"2000s":1.2761,"2010s":0.8733,"All":2.8376},"Mississippi":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0046,"1950s":0.0184,"1960s":0.0321,"1970s":0.1579,"1980s":0.0555,"1990s":0.1943,"2000s":0.6328,"2010s":0.4044,"All":1.5},"Montana":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0338,"1960s":0.1482,"1970s":0.1584,"1980s":0.1525,"1990s":0.8885,"2000s":2.1947,"2010s":2.0517,"All":5.6278},"North Carolina":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0028,"1950s":0.0074,"1960s":0.0439,"1970s":0.1023,"1980s":0.102,"1990s":0.2338,"2000s":0.9852,"2010s":0.8159,"All":2.2933},"North Dakota":{"1910s":0.0,"1920s":0.0,"1930s":0.0147,"1940s":0.0156,"1950s":0.0323,"1960s":0.0474,"1970s":0.1295,"1980s":0.0153,"1990s":0.36,"2000s":1.0277,"2010s":0.4758,"All":2.1183},"Nebraska":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0076,"1950s":0.0377,"1960s":0.0779,"1970s":0.0405,"1980s":0.0956,"1990s":0.2344,"2000s":1.1512,"2010s":0.7228,"All":2.3677},"New Hampshire":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0563,"1960s":0.0989,"1970s":0.3253,"1980s":0.1521,"1990s":0.4417,"2000s":1.845,"2010s":1.5876,"All":4.5069},"New Jersey":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0228,"1960s":0.0577,"1970s":0.0739,"1980s":0.0584,"1990s":0.1928,"2000s":0.8509,"2010s":0.5664,"All":1.8229},"New Mexico":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.1128,"1950s":0.044,"1960s":0.0946,"1970s":0.2264,"1980s":0.1765,"1990s":0.726,"2000s":2.1989,"2010s":1.1558,"All":4.735},"Nevada":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0907,"1950s":0.1874,"1960s":0.4206,"1970s":0.3069,"1980s":0.2998,"1990s":1.3313,"2000s":2.1969,"2010s":0.9183,"All":5.7519},"New York":{"1910s":0.0,"1920s":0.0,"1930s":0.0016,"1940s":0.0037,"1950s":0.0182,"1960s":0.0435,"1970s":0.0724,"1980s":0.0695,"1990s":0.1984,"2000s":0.7725,"2010s":0.5326,"All":1.7124},"Ohio":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0015,"1950s":0.0264,"1960s":0.0525,"1970s":0.0817,"1980s":0.0593,"1990s":0.2821,"2000s":0.8562,"2010s":0.7923,"All":2.152},"Oklahoma":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0043,"1950s":0.0269,"1960s":0.1117,"1970s":0.0703,"1980s":0.0859,"1990s":0.1907,"2000s":1.0665,"2010s":0.6904,"All":2.2467},"Oregon":{"1910s":0.0,"1920s":0.0128,"1930s":0.0105,"1940s":0.0,"1950s":0.0197,"1960s":0.1357,"1970s":0.1435,"1980s":0.1329,"1990s":0.971,"2000s":2.6217,"2010s":1.5061,"All":5.5539},"Pennsylvania":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.004,"1950s":0.0162,"1960s":0.0539,"1970s":0.0721,"1980s":0.0455,"1990s":0.2146,"2000s":0.9315,"2010s":0.7503,"All":2.0881},"Puerto Rico":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0045,"1960s":0.0043,"1970s":0.0184,"1980s":0.0094,"1990s":0.0426,"2000s":0.021,"2010s":0.0,"All":0.1002},"Rhode Island":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.014,"1950s":0.0253,"1960s":0.0465,"1970s":0.1479,"1980s":0.0739,"1990s":0.2491,"2000s":1.1733,"2010s":1.0546,"All":2.7846},"South Carolina":{"1910s":0.0,"1920s":0.0,"1930s":0.0058,"1940s":0.0053,"1950s":0.0047,"1960s":0.0672,"1970s":0.1042,"1980s":0.0577,"1990s":0.1922,"2000s":1.0269,"2010s":1.1502,"All":2.6142},"South Dakota":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0153,"1960s":0.1029,"1970s":0.0451,"1980s":0.0579,"1990s":0.3879,"2000s":1.0333,"2010s":0.9212,"All":2.5636},"Tennessee":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0069,"1950s":0.0122,"1960s":0.0308,"1970s":0.0892,"1980s":0.0501,"1990s":0.2932,"2000s":0.9685,"2010s":0.6618,"All":2.1127},"Texas":{"1910s":0.0026,"1920s":0.0,"1930s":0.0,"1940s":0.0109,"1950s":0.0467,"1960s":0.0647,"1970s":0.1134,"1980s":0.078,"1990s":0.2514,"2000s":0.9294,"2010s":0.3826,"All":1.8797},"Utah":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0182,"1950s":0.029,"1960s":0.1123,"1970s":0.1322,"1980s":0.1232,"1990s":0.5688,"2000s":1.3031,"2010s":1.1071,"All":3.3939},"Virginia":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0075,"1950s":0.0211,"1960s":0.0555,"1970s":0.0753,"1980s":0.0804,"1990s":0.2198,"2000s":0.8519,"2010s":0.6762,"All":1.9877},"Vermont":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0529,"1960s":0.0513,"1970s":0.1575,"1980s":0.1369,"1990s":0.2488,"2000s":1.9053,"2010s":2.525,"All":5.0777},"Washington":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0288,"1950s":0.0799,"1960s":0.1788,"1970s":0.2288,"1980s":0.1404,"1990s":1.5288,"2000s":3.3847,"2010s":1.9451,"All":7.5153},"Wisconsin":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0064,"1950s":0.0204,"1960s":0.0405,"1970s":0.077,"1980s":0.085,"1990s":0.3639,"2000s":1.0254,"2010s":0.8862,"All":2.5048},"West Virginia":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0053,"1950s":0.0299,"1960s":0.0484,"1970s":0.0917,"1980s":0.0923,"1990s":0.2844,"2000s":1.1447,"2010s":0.9498,"All":2.6465},"Wyoming":{"1910s":0.0,"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.1033,"1960s":0.0606,"1970s":0.1805,"1980s":0.1491,"1990s":0.6614,"2000s":1.8632,"2010s":1.1,"All":4.1181}};
+const BF_PC  = {"Alabama":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0,"1970s":0.0145,"1980s":0.018,"1990s":0.0198,"2000s":0.0855,"2010s":0.0481,"All":0.1859,"1910s":0.0},"Alaska":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0,"1970s":0.0,"1980s":0.0,"1990s":0.0182,"2000s":0.1276,"2010s":0.0,"All":0.1458,"1910s":0.0},"Arizona":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0,"1970s":0.0057,"1980s":0.0184,"1990s":0.0136,"2000s":0.0565,"2010s":0.0172,"All":0.1114,"1910s":0.0},"Arkansas":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0112,"1970s":0.0416,"1980s":0.0437,"1990s":0.051,"2000s":0.1347,"2010s":0.0377,"All":0.3199,"1910s":0.0},"California":{"1920s":0.0,"1930s":0.0,"1940s":0.0015,"1950s":0.0047,"1960s":0.0095,"1970s":0.011,"1980s":0.0123,"1990s":0.0141,"2000s":0.0345,"2010s":0.0043,"All":0.0919,"1910s":0.0},"Colorado":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0114,"1970s":0.0317,"1980s":0.0208,"1990s":0.0668,"2000s":0.1116,"2010s":0.0219,"All":0.2642,"1910s":0.0},"Connecticut":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.005,"1960s":0.0,"1970s":0.0,"1980s":0.0064,"1990s":0.0,"2000s":0.0059,"2010s":0.0028,"All":0.0201,"1910s":0.0},"Delaware":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0,"1970s":0.0,"1980s":0.0,"1990s":0.015,"2000s":0.0,"2010s":0.0223,"All":0.0373,"1910s":0.0},"Florida":{"1920s":0.0,"1930s":0.0,"1940s":0.0053,"1950s":0.0036,"1960s":0.0081,"1970s":0.0353,"1980s":0.0359,"1990s":0.0255,"2000s":0.0613,"2010s":0.0324,"All":0.2074,"1910s":0.0},"Georgia":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0029,"1960s":0.0076,"1970s":0.024,"1980s":0.0165,"1990s":0.0185,"2000s":0.0611,"2010s":0.0165,"All":0.1471,"1910s":0.0},"Idaho":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.06,"1970s":0.0281,"1980s":0.0424,"1990s":0.0199,"2000s":0.1546,"2010s":0.0447,"All":0.3497,"1910s":0.0},"Illinois":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0089,"1970s":0.018,"1980s":0.0105,"1990s":0.014,"2000s":0.0459,"2010s":0.0491,"All":0.1464,"1910s":0.0},"Indiana":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0,"1970s":0.0096,"1980s":0.0073,"1990s":0.0108,"2000s":0.0296,"2010s":0.0062,"All":0.0635,"1910s":0.0},"Iowa":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0,"1970s":0.0354,"1980s":0.0172,"1990s":0.0108,"2000s":0.041,"2010s":0.0361,"All":0.1405,"1910s":0.0},"Kansas":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0046,"1970s":0.0312,"1980s":0.0127,"1990s":0.0202,"2000s":0.0446,"2010s":0.0386,"All":0.1519,"1910s":0.0},"Kentucky":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0102,"1960s":0.0,"1970s":0.0249,"1980s":0.0301,"1990s":0.0461,"2000s":0.0767,"2010s":0.0415,"All":0.2295,"1910s":0.0},"Louisiana":{"1920s":0.0056,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0,"1970s":0.0247,"1980s":0.0166,"1990s":0.0095,"2000s":0.0157,"2010s":0.0022,"All":0.0743,"1910s":0.0},"Maryland":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0,"1970s":0.0026,"1980s":0.0024,"1990s":0.0063,"2000s":0.0038,"2010s":0.0052,"All":0.0203,"1910s":0.0},"Massachusetts":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0,"1970s":0.0053,"1980s":0.0,"1990s":0.0017,"2000s":0.0079,"2010s":0.0061,"All":0.021,"1910s":0.0},"Michigan":{"1920s":0.0,"1930s":0.0,"1940s":0.0019,"1950s":0.0,"1960s":0.0089,"1970s":0.0169,"1980s":0.0151,"1990s":0.0183,"2000s":0.0503,"2010s":0.0354,"All":0.1468,"1910s":0.0},"Minnesota":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0,"1970s":0.0105,"1980s":0.0074,"1990s":0.0046,"2000s":0.0346,"2010s":0.0207,"All":0.0778,"1910s":0.0},"Mississippi":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0046,"1960s":0.0,"1970s":0.0316,"1980s":0.0119,"1990s":0.0039,"2000s":0.0176,"2010s":0.0067,"All":0.0763,"1910s":0.0},"Missouri":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0051,"1960s":0.0093,"1970s":0.0278,"1980s":0.0366,"1990s":0.0293,"2000s":0.0643,"2010s":0.0434,"All":0.2158,"1910s":0.0},"Montana":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0,"1970s":0.0576,"1980s":0.1017,"1990s":0.0751,"2000s":0.1108,"2010s":0.0606,"All":0.4058,"1910s":0.0},"Nebraska":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0075,"1960s":0.0,"1970s":0.0202,"1980s":0.0064,"1990s":0.0127,"2000s":0.0292,"2010s":0.0,"All":0.076,"1910s":0.0},"Nevada":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0,"1970s":0.0614,"1980s":0.025,"1990s":0.0,"2000s":0.01,"2010s":0.0,"All":0.0964,"1910s":0.0},"New Hampshire":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0,"1970s":0.0136,"1980s":0.0,"1990s":0.0,"2000s":0.0243,"2010s":0.0076,"All":0.0455,"1910s":0.0},"New Jersey":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0021,"1960s":0.0,"1970s":0.007,"1980s":0.0014,"1990s":0.0065,"2000s":0.025,"2010s":0.0034,"All":0.0454,"1910s":0.0},"New Mexico":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0,"1970s":0.0,"1980s":0.0154,"1990s":0.0,"2000s":0.088,"2010s":0.0194,"All":0.1228,"1910s":0.0},"New York":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0006,"1970s":0.0011,"1980s":0.0017,"1990s":0.005,"2000s":0.0137,"2010s":0.0041,"All":0.0262,"1910s":0.0},"North Carolina":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0044,"1970s":0.0197,"1980s":0.017,"1990s":0.0181,"2000s":0.0236,"2010s":0.0157,"All":0.0985,"1910s":0.0},"North Dakota":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0,"1970s":0.0,"1980s":0.0,"1990s":0.0,"2000s":0.0311,"2010s":0.0,"All":0.0311,"1910s":0.0},"Ohio":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0038,"1960s":0.0041,"1970s":0.0291,"1980s":0.037,"1990s":0.0415,"2000s":0.0705,"2010s":0.0321,"All":0.2181,"1910s":0.0},"Oklahoma":{"1920s":0.0,"1930s":0.0,"1940s":0.0043,"1950s":0.0,"1960s":0.0043,"1970s":0.0156,"1980s":0.0198,"1990s":0.0318,"2000s":0.113,"2010s":0.0213,"All":0.2101,"1910s":0.0},"Oregon":{"1920s":0.0,"1930s":0.0,"1940s":0.0092,"1950s":0.0066,"1960s":0.0113,"1970s":0.1339,"1980s":0.076,"1990s":0.1161,"2000s":0.2075,"2010s":0.0209,"All":0.5815,"1910s":0.0},"Pennsylvania":{"1920s":0.0011,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0027,"1970s":0.0051,"1980s":0.0051,"1990s":0.0017,"2000s":0.0138,"2010s":0.0063,"All":0.0358,"1910s":0.0},"Rhode Island":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0,"1970s":0.0211,"1980s":0.0,"1990s":0.01,"2000s":0.0095,"2010s":0.0095,"All":0.0501,"1910s":0.0},"South Carolina":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0084,"1970s":0.0154,"1980s":0.0064,"1990s":0.0086,"2000s":0.0349,"2010s":0.0,"All":0.0737,"1910s":0.0},"South Dakota":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0,"1970s":0.0,"1980s":0.0,"1990s":0.0,"2000s":0.0662,"2010s":0.0,"All":0.0662,"1910s":0.0},"Tennessee":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.003,"1960s":0.0028,"1970s":0.0102,"1980s":0.0348,"1990s":0.0123,"2000s":0.0457,"2010s":0.0063,"All":0.1151,"1910s":0.0},"Texas":{"1920s":0.0,"1930s":0.0034,"1940s":0.0,"1950s":0.0,"1960s":0.0052,"1970s":0.0125,"1980s":0.007,"1990s":0.0082,"2000s":0.058,"2010s":0.0056,"All":0.0999,"1910s":0.0},"Utah":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0225,"1970s":0.0472,"1980s":0.0274,"1990s":0.029,"2000s":0.094,"2010s":0.0,"All":0.2201,"1910s":0.0},"Vermont":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0,"1970s":0.0,"1980s":0.0,"1990s":0.0,"2000s":0.0329,"2010s":0.0,"All":0.0329,"1910s":0.0},"Virginia":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.003,"1960s":0.0,"1970s":0.0151,"1980s":0.0075,"1990s":0.0178,"2000s":0.0268,"2010s":0.0263,"All":0.0965,"1910s":0.0},"Washington":{"1920s":0.0,"1930s":0.0,"1940s":0.0173,"1950s":0.0126,"1960s":0.0491,"1970s":0.1261,"1980s":0.1355,"1990s":0.1706,"2000s":0.3478,"2010s":0.0907,"All":0.9497,"1910s":0.0},"West Virginia":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0215,"1970s":0.0229,"1980s":0.0308,"1990s":0.0781,"2000s":0.3042,"2010s":0.0486,"All":0.5061,"1910s":0.0},"Wisconsin":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0025,"1970s":0.0181,"1980s":0.0106,"1990s":0.0143,"2000s":0.0503,"2010s":0.0281,"All":0.1239,"1910s":0.0},"Wyoming":{"1920s":0.0,"1930s":0.0,"1940s":0.0,"1950s":0.0,"1960s":0.0,"1970s":0.0301,"1980s":0.0213,"1990s":0.0221,"2000s":0.162,"2010s":0.0,"All":0.2355,"1910s":0.0}};
+
+const ALL_DECADES = ["1910s","1920s","1930s","1940s","1950s","1960s","1970s","1980s","1990s","2000s","2010s"];
+
+// ─────────────────────────────────────────────────────────────
+// BUILD LOOKUP MAPS
+// ─────────────────────────────────────────────────────────────
+function buildMap(byDecadeObj) {
+  const m = {};
+  for (const [dec, arr] of Object.entries(byDecadeObj)) {
+    for (const {state, count} of arr) {
+      if (!m[state]) m[state] = {};
+      m[state][dec] = count;
+    }
+  }
+  return m;
+}
+const BF_MAP  = buildMap(BF_COUNT);
+const UFO_MAP = buildMap(UFO_COUNT);
+
+// Union of all states (sorted A–Z)
+const STATE_LIST = [...new Set([...Object.keys(BF_MAP), ...Object.keys(UFO_MAP)])].sort();
+
+// ─────────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────────
+let displayMode   = "count";   // "count" | "percap"
+let currentDecade = "All";
+let sortMode      = "count";   // "count" | "name"
+let selectedState = null;
+
+// ─────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────
+const fmtCount  = d3.format(",");
+const fmtPc     = v => v === 0 ? "0" : v < 0.01 ? v.toFixed(4) : v.toFixed(2);
+
+function getVal(state, decade, mode) {
+  if (mode === "count") {
+    return {
+      bf:  BF_MAP[state]?.[decade]  ?? 0,
+      ufo: UFO_MAP[state]?.[decade] ?? 0
+    };
+  } else {
+    return {
+      bf:  BF_PC[state]?.[decade]  ?? 0,
+      ufo: UFO_PC[state]?.[decade] ?? 0
+    };
+  }
+}
+
+function getDisplayData() {
+  let data = STATE_LIST.map(state => {
+    const v = getVal(state, currentDecade, displayMode);
+    return { state, bfVal: v.bf, ufoVal: v.ufo };
+  });
+  // Filter out states with zero in both
+  data = data.filter(d => d.bfVal > 0 || d.ufoVal > 0);
+  if (sortMode === "count") {
+    data.sort((a, b) => (b.ufoVal - a.ufoVal) || (b.bfVal - a.bfVal));
+  } else {
+    data.sort((a, b) => a.state.localeCompare(b.state));
+  }
+  return data;
+}
+
+function syncResetBtn() {
+  const isDefault = displayMode === "count" && currentDecade === "All" && sortMode === "count" && !selectedState;
+  document.getElementById("reset-btn").style.display = isDefault ? "none" : "block";
+}
+
+// ─────────────────────────────────────────────────────────────
+// CHART CONSTANTS
+// ─────────────────────────────────────────────────────────────
+const ROW_H    = 26;
+const CENTER_W = 162;
+const MARGIN_T = 58;
+const MARGIN_B = 20;
+const LABEL_PAD = 48;  // space outside bar for value label
+
+// ─────────────────────────────────────────────────────────────
+// MAIN RENDER
+// ─────────────────────────────────────────────────────────────
+const svg = d3.select("#main-svg");
+const wrap = document.getElementById("chart-wrap");
+
+function render(animate = true) {
+  const data = getDisplayData();
+  const W = wrap.clientWidth;
+  if (W < 100) return;
+
+  const halfW = (W - CENTER_W) / 2;
+  const bfMaxVal  = d3.max(data, d => d.bfVal)  || 1;
+  const ufoMaxVal = d3.max(data, d => d.ufoVal) || 1;
+
+  const bfScale  = d3.scaleLinear().domain([0, bfMaxVal]).range([0, halfW - LABEL_PAD]).clamp(true);
+  const ufoScale = d3.scaleLinear().domain([0, ufoMaxVal]).range([0, halfW - LABEL_PAD]).clamp(true);
+
+  const H = MARGIN_T + data.length * ROW_H + MARGIN_B;
+  svg.attr("width", W).attr("height", H);
+
+  // ── Axis lines (top) ──────────────────────────────────────
+  svg.selectAll(".axis-line").remove();
+  svg.selectAll(".axis-tick").remove();
+  svg.selectAll(".axis-label-top").remove();
+
+  // BF side label (top-left)
+  svg.append("text").attr("class","axis-label-top")
+    .attr("x", halfW - LABEL_PAD / 2).attr("y", 15)
+    .attr("text-anchor","end")
+    .attr("font-family","Courier New,monospace").attr("font-size",13).attr("font-weight","700")
+    .attr("fill","#FDAE61").attr("opacity",0.9)
+    .text("← BIGFOOT");
+
+  // UFO side label (top-right)
+  svg.append("text").attr("class","axis-label-top")
+    .attr("x", halfW + CENTER_W + LABEL_PAD / 2).attr("y", 15)
+    .attr("text-anchor","start")
+    .attr("font-family","Courier New,monospace").attr("font-size",13).attr("font-weight","700")
+    .attr("fill","#2c7bb6").attr("opacity",1)
+    .text("UFO SIGHTINGS →");
+
+  // Center divider line
+  // (vertical lines at center edges)
+  const CX_L = halfW;
+  const CX_R = halfW + CENTER_W;
+
+  // Tick lines for BF (descending from center outward)
+  const bfTicks = bfScale.ticks(4);
+  bfTicks.forEach(t => {
+    if (t === 0) return;
+    const x = CX_L - bfScale(t);
+    svg.append("line").attr("class","axis-tick")
+      .attr("x1",x).attr("x2",x)
+      .attr("y1",MARGIN_T - 6).attr("y2",H - MARGIN_B)
+      .attr("stroke","rgba(215,234,247,0.1)").attr("stroke-width",1).attr("stroke-dasharray","2,5");
+    svg.append("text").attr("class","axis-label-top")
+      .attr("x",x).attr("y",MARGIN_T - 10)
+      .attr("text-anchor","middle")
+      .attr("font-family","Courier New,monospace").attr("font-size",11)
+      .attr("fill","#D7EAF7").attr("opacity",0.65)
+      .text(displayMode === "count" ? fmtCount(t) : fmtPc(t));
+  });
+  // Tick lines for UFO
+  const ufoTicks = ufoScale.ticks(4);
+  ufoTicks.forEach(t => {
+    if (t === 0) return;
+    const x = CX_R + ufoScale(t);
+    svg.append("line").attr("class","axis-tick")
+      .attr("x1",x).attr("x2",x)
+      .attr("y1",MARGIN_T - 6).attr("y2",H - MARGIN_B)
+      .attr("stroke","rgba(215,234,247,0.1)").attr("stroke-width",1).attr("stroke-dasharray","2,5");
+    svg.append("text").attr("class","axis-label-top")
+      .attr("x",x).attr("y",MARGIN_T - 10)
+      .attr("text-anchor","middle")
+      .attr("font-family","Courier New,monospace").attr("font-size",11)
+      .attr("fill","#D7EAF7").attr("opacity",0.65)
+      .text(displayMode === "count" ? fmtCount(t) : fmtPc(t));
+  });
+
+  // Center baseline line
+  svg.append("line").attr("class","axis-line")
+    .attr("x1", CX_L).attr("x2", CX_L)
+    .attr("y1", MARGIN_T - 8).attr("y2", H - MARGIN_B)
+    .attr("stroke","rgba(253,174,97,0.3)").attr("stroke-width",1);
+  svg.append("line").attr("class","axis-line")
+    .attr("x1", CX_R).attr("x2", CX_R)
+    .attr("y1", MARGIN_T - 8).attr("y2", H - MARGIN_B)
+    .attr("stroke","rgba(44,123,182,0.3)").attr("stroke-width",1);
+
+  // Horizontal axis line
+  svg.append("line").attr("class","axis-line")
+    .attr("x1",0).attr("x2",W)
+    .attr("y1",MARGIN_T - 2).attr("y2",MARGIN_T - 2)
+    .attr("stroke","rgba(215,234,247,0.18)").attr("stroke-width",1);
+
+  // ── Rows ─────────────────────────────────────────────────
+  const dur = animate ? 380 : 0;
+
+  const rows = svg.selectAll(".state-row")
+    .data(data, d => d.state);
+
+  const entered = rows.enter().append("g")
+    .attr("class", d => "state-row" + (d.state === selectedState ? " selected" : ""))
+    .attr("transform", (d, i) => `translate(0,${MARGIN_T + i * ROW_H})`)
+    .style("cursor","pointer")
+    .on("mouseenter", function(event, d) { showTooltip(event, d); })
+    .on("mousemove",  function(event, d) { moveTooltip(event); })
+    .on("mouseleave", hideTooltip)
+    .on("click",      function(event, d) { selectState(d.state); });
+
+  // Row background (hit area)
+  entered.append("rect").attr("class","row-bg")
+    .attr("x",0).attr("y",0)
+    .attr("width",W).attr("height",ROW_H - 1)
+    .attr("fill","transparent");
+
+  // BF bar
+  entered.append("rect").attr("class","bar-bf")
+    .attr("x", CX_L).attr("y", 4)
+    .attr("width", 0).attr("height", ROW_H - 10);
+
+  // UFO bar
+  entered.append("rect").attr("class","bar-ufo")
+    .attr("x", CX_R).attr("y", 4)
+    .attr("width", 0).attr("height", ROW_H - 10);
+
+  // State name (center)
+  entered.append("text").attr("class","state-label")
+    .attr("x", CX_L + CENTER_W / 2).attr("y", ROW_H / 2 + 4)
+    .attr("text-anchor","middle").attr("dominant-baseline","middle");
+
+  // BF value label (left of bar)
+  entered.append("text").attr("class","val-label val-bf")
+    .attr("y", ROW_H / 2 + 4)
+    .attr("text-anchor","end").attr("dominant-baseline","middle");
+
+  // UFO value label (right of bar)
+  entered.append("text").attr("class","val-label val-ufo")
+    .attr("y", ROW_H / 2 + 4)
+    .attr("text-anchor","start").attr("dominant-baseline","middle");
+
+  rows.exit().remove();
+
+  // ── UPDATE all rows ────────────────────────────────────────
+  const allRows = svg.selectAll(".state-row")
+    .data(data, d => d.state)
+    .classed("selected", d => d.state === selectedState);
+
+  allRows.transition().duration(dur)
+    .attr("transform", (d, i) => `translate(0,${MARGIN_T + i * ROW_H})`);
+
+  allRows.select(".row-bg")
+    .attr("width", W);
+
+  allRows.select(".bar-bf")
+    .attr("x", d => CX_L - bfScale(d.bfVal))
+    .transition().duration(dur)
+    .attr("x", d => CX_L - bfScale(d.bfVal))
+    .attr("width", d => bfScale(d.bfVal));
+
+  allRows.select(".bar-ufo")
+    .transition().duration(dur)
+    .attr("width", d => ufoScale(d.ufoVal));
+
+  allRows.select(".state-label")
+    .attr("x", CX_L + CENTER_W / 2)
+    .text(d => d.state);
+
+  allRows.select(".val-bf")
+    .attr("x", d => CX_L - bfScale(d.bfVal) - 3)
+    .text(d => d.bfVal === 0 ? "" : displayMode === "count" ? fmtCount(d.bfVal) : fmtPc(d.bfVal));
+
+  allRows.select(".val-ufo")
+    .attr("x", d => CX_R + ufoScale(d.ufoVal) + 3)
+    .text(d => d.ufoVal === 0 ? "" : displayMode === "count" ? fmtCount(d.ufoVal) : fmtPc(d.ufoVal));
+}
+
+// ─────────────────────────────────────────────────────────────
+// STATE SELECTION + DETAIL
+// ─────────────────────────────────────────────────────────────
+function selectState(state) {
+  selectedState = (selectedState === state) ? null : state;
+  svg.selectAll(".state-row")
+    .classed("selected", d => d.state === selectedState);
+
+  if (selectedState) {
+    renderDetail(selectedState);
+  } else {
+    document.getElementById("detail-content").style.display = "none";
+    document.getElementById("detail-hint").style.display = "block";
+  }
+  syncResetBtn();
+}
+
+function renderDetail(state) {
+  document.getElementById("detail-hint").style.display = "none";
+  document.getElementById("detail-content").style.display = "block";
+  document.getElementById("detail-state-name").textContent = state;
+
+  const bfTotal  = BF_MAP[state]?.["All"]  ?? 0;
+  const ufoTotal = UFO_MAP[state]?.["All"] ?? 0;
+  const bfPcAll  = BF_PC[state]?.["All"]   ?? 0;
+  const ufoPcAll = UFO_PC[state]?.["All"]  ?? 0;
+
+  document.getElementById("detail-totals").innerHTML =
+    `<span style="color:#FDAE61">BF</span> ${fmtCount(bfTotal)} total &nbsp;·&nbsp; ${fmtPc(bfPcAll)}/10K<br>` +
+    `<span style="color:#2c7bb6">UFO</span> ${fmtCount(ufoTotal)} total &nbsp;·&nbsp; ${fmtPc(ufoPcAll)}/10K`;
+
+  // Draw BF detail mini-chart
+  drawMiniChart("bf-detail-svg", state, BF_DETAIL[state] || {}, "#FDAE61",
+    ["1920s","1930s","1940s","1950s","1960s","1970s","1980s","1990s","2000s","2010s"]);
+
+  // Draw UFO detail mini-chart
+  drawMiniChart("ufo-detail-svg", state, UFO_DETAIL[state] || {}, "#2c7bb6", ALL_DECADES);
+}
+
+function drawMiniChart(svgId, state, detailObj, color, decades) {
+  const container = document.getElementById(svgId);
+  const W = container.parentElement.clientWidth - 4;
+  const rowH = 18;
+  const labelW = 36;
+  const valW = 32;
+  const barW = W - labelW - valW - 8;
+
+  const vals = decades.map(d => ({ decade: d, val: detailObj[d] ?? 0 }));
+  const maxVal = d3.max(vals, d => d.val) || 1;
+  const xScale = d3.scaleLinear().domain([0, maxVal]).range([0, barW]);
+
+  const H = decades.length * rowH + 4;
+  const sv = d3.select(`#${svgId}`).attr("width", W).attr("height", H);
+  sv.selectAll("*").remove();
+
+  const isCurrentDec = d => d.decade === currentDecade;
+
+  vals.forEach((d, i) => {
+    const y = i * rowH;
+    const highlight = isCurrentDec(d);
+    const op = highlight ? 1 : (currentDecade === "All" ? 0.7 : 0.28);
+
+    sv.append("text")
+      .attr("x", labelW - 4).attr("y", y + rowH / 2 + 1)
+      .attr("text-anchor","end").attr("dominant-baseline","middle")
+      .attr("font-family","Courier New,monospace").attr("font-size",9)
+      .attr("fill","#D7EAF7").attr("opacity", highlight ? 0.75 : 0.3)
+      .text(d.decade);
+
+    sv.append("rect")
+      .attr("x", labelW).attr("y", y + 4)
+      .attr("width", xScale(d.val)).attr("height", rowH - 8)
+      .attr("fill", color).attr("opacity", op);
+
+    if (d.val > 0) {
+      sv.append("text")
+        .attr("x", labelW + xScale(d.val) + 3).attr("y", y + rowH / 2 + 1)
+        .attr("dominant-baseline","middle")
+        .attr("font-family","Courier New,monospace").attr("font-size",9)
+        .attr("fill","#D7EAF7").attr("opacity", highlight ? 0.65 : 0.25)
+        .text(fmtCount(d.val));
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+// TOOLTIP
+// ─────────────────────────────────────────────────────────────
+const tip = document.getElementById("tooltip");
+
+function showTooltip(event, d) {
+  const bfLabel  = displayMode === "count" ? fmtCount(d.bfVal) + " sightings" : fmtPc(d.bfVal) + " / 10K";
+  const ufoLabel = displayMode === "count" ? fmtCount(d.ufoVal) + " sightings" : fmtPc(d.ufoVal) + " / 10K";
+  tip.innerHTML =
+    `<div class="tt-state">${d.state}</div>` +
+    `<div class="tt-bf">▌ Bigfoot &nbsp; ${bfLabel}</div>` +
+    `<div class="tt-ufo">▌ UFO &nbsp;&nbsp;&nbsp;&nbsp; ${ufoLabel}</div>`;
+  tip.style.opacity = "1";
+  moveTooltip(event);
+}
+function moveTooltip(event) {
+  const tx = event.clientX + 14, ty = event.clientY - 10;
+  tip.style.left = tx + "px"; tip.style.top = ty + "px";
+}
+function hideTooltip() { tip.style.opacity = "0"; }
+
+// ─────────────────────────────────────────────────────────────
+// CONTROLS
+// ─────────────────────────────────────────────────────────────
+document.getElementById("btn-count").addEventListener("click", () => {
+  displayMode = "count";
+  document.getElementById("btn-count").classList.add("active");
+  document.getElementById("btn-percap").classList.remove("active");
+  render(); if (selectedState) renderDetail(selectedState);
+  syncResetBtn();
+});
+document.getElementById("btn-percap").addEventListener("click", () => {
+  displayMode = "percap";
+  document.getElementById("btn-percap").classList.add("active");
+  document.getElementById("btn-count").classList.remove("active");
+  render(); if (selectedState) renderDetail(selectedState);
+  syncResetBtn();
+});
+
+document.getElementById("decade-select").addEventListener("change", e => {
+  currentDecade = e.target.value;
+  render(); if (selectedState) renderDetail(selectedState);
+  syncResetBtn();
+});
+
+document.getElementById("btn-count-sort").addEventListener("click", () => {
+  sortMode = "count";
+  document.getElementById("btn-count-sort").classList.add("active");
+  document.getElementById("btn-az-sort").classList.remove("active");
+  render(); syncResetBtn();
+});
+document.getElementById("btn-az-sort").addEventListener("click", () => {
+  sortMode = "name";
+  document.getElementById("btn-az-sort").classList.add("active");
+  document.getElementById("btn-count-sort").classList.remove("active");
+  render(); syncResetBtn();
+});
+
+document.getElementById("reset-btn").addEventListener("click", () => {
+  displayMode   = "count";
+  currentDecade = "All";
+  sortMode      = "count";
+  selectedState = null;
+  document.getElementById("btn-count").classList.add("active");
+  document.getElementById("btn-percap").classList.remove("active");
+  document.getElementById("decade-select").value = "All";
+  document.getElementById("btn-count-sort").classList.add("active");
+  document.getElementById("btn-az-sort").classList.remove("active");
+  document.getElementById("detail-content").style.display = "none";
+  document.getElementById("detail-hint").style.display = "block";
+  render(); syncResetBtn();
+});
+
+// ─────────────────────────────────────────────────────────────
+// RESPONSIVE
+// ─────────────────────────────────────────────────────────────
+new ResizeObserver(() => render(false)).observe(wrap);
+
+// ─────────────────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────────────────
+render();
+</script>
+</body>
+</html>
