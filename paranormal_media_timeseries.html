@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>UFO and Bigfoot Media & Sightings</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0;
+      font-family: 'Courier New', Courier, monospace;
+      background: #000;
+      overflow: hidden;
+    }
+
+    /* ── Layout ── */
+    #app { display: flex; width: 100vw; height: 100vh; overflow: hidden; }
+    #chart-wrap { flex: 1; min-width: 0; position: relative; }
+    #right-panel {
+      width: 220px;
+      flex-shrink: 0;
+      background: #000;
+      border-left: 1px solid rgba(215,234,247,0.10);
+      padding: 24px 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      overflow-y: auto;
+    }
+
+    /* ── Right panel sections ── */
+    .panel-title {
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      color: #ffffff;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    /* Filter buttons */
+    .filter-btn {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 2px;
+      color: #ffffff;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      padding: 7px 10px;
+      cursor: pointer;
+      margin-bottom: 5px;
+      transition: color 0.12s, border-color 0.12s;
+    }
+    .filter-btn:hover  { color: #D7EAF7; border-color: rgba(215,234,247,0.22); }
+    .filter-btn.act-both { color: #D7EAF7; border-color: rgba(215,234,247,0.32); }
+    .filter-btn.act-ufo  { color: #2c7bb6; border-color: rgba(44,123,182,0.55); }
+    .filter-btn.act-bf   { color: #FDAE61; border-color: rgba(253,174,97,0.55); }
+
+    /* Series legend */
+    .legend-row {
+      display: flex; align-items: center; gap: 9px;
+      color: #ffffff;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+    .leg-swatch { width: 24px; height: 3px; border-radius: 2px; flex-shrink: 0; }
+
+    /* ── Axes / grid ── */
+    .vz-axis text {
+      font-size: 14px; font-weight: 700;
+      fill: #ffffff; opacity: 1;
+      font-family: 'Courier New', monospace;
+    }
+    .vz-axis .domain { display: none; }
+    .vz-axis .tick line { stroke: rgba(215,234,247,0.25); }
+    .vz-grid line { stroke: rgba(215,234,247,0.07); }
+    .vz-grid .domain { display: none; }
+    .axis-ufo text { fill: #2c7bb6 !important; opacity: 0.9 !important; }
+    .axis-bf  text { fill: #FDAE61 !important; opacity: 0.9 !important; }
+    .axis-ufo .tick line { stroke: rgba(44,123,182,0.3) !important; }
+    .axis-bf  .tick line { stroke: rgba(253,174,97,0.3) !important; }
+
+    /* ── Brush ── */
+    .brush .selection { fill: #D7EAF7; fill-opacity: 0.11; stroke: #D7EAF7; stroke-width: 1; }
+    .brush .handle    { fill: #D7EAF7; opacity: 0.45; }
+    .brush .overlay   { cursor: crosshair; }
+
+    /* ── Tooltip ── */
+    #tooltip {
+      position: fixed;
+      background: rgba(4,4,4,0.97);
+      border: 1px solid rgba(215,234,247,0.28);
+      color: #D7EAF7;
+      padding: 12px 14px;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px; line-height: 1.6;
+      width: 290px;
+      opacity: 0;
+      transition: opacity 0.12s;
+      z-index: 300;
+      pointer-events: none;
+      word-wrap: break-word;
+    }
+    #tooltip.pinned-ufo { border-color: rgba(44,123,182,0.6); }
+    #tooltip.pinned-bf  { border-color: rgba(253,174,97,0.6); }
+    .tt-title { font-size: 13.5px; font-weight: 700; color: #fff; display: block; margin-bottom: 3px; }
+    .tt-year  { font-size: 11px; display: inline; }
+    .tt-year-ufo { color: #2c7bb6; }
+    .tt-year-bf  { color: #FDAE61; }
+    .tt-stars { color: #f0c040; font-size: 12px; }
+    .tt-votes { color: rgba(215,234,247,0.5); font-size: 11px; }
+    .tt-hint  { font-size: 10.5px; color: rgba(215,234,247,0.38); margin-top: 7px; display: block; }
+    .tt-desc  {
+      font-size: 11px; line-height: 1.75;
+      margin-top: 10px; padding-top: 9px;
+      border-top: 1px solid rgba(215,234,247,0.13);
+      color: rgba(215,234,247,0.88);
+    }
+
+    /* ── Floating UI buttons ── */
+    #ui-buttons {
+      position: fixed;
+      top: 14px; right: 236px;
+      display: flex; gap: 8px;
+      z-index: 300;
+    }
+    .ui-btn {
+      background: rgba(0,0,0,0.85);
+      border: 1px solid rgba(215,234,247,0.35);
+      color: #D7EAF7;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 11px;
+      padding: 5px 12px;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: border-color 0.1s, color 0.1s;
+      display: none;
+    }
+    .ui-btn.visible { display: inline-block; }
+    .ui-btn.active  { border-color: #D7EAF7; color: #D7EAF7; }
+    .ui-btn:hover   { border-color: #D7EAF7; color: #D7EAF7; }
+
+    body.zoom-mode #chart-wrap { cursor: crosshair; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="chart-wrap"></div>
+
+  <!-- ── Right panel ── -->
+  <div id="right-panel">
+
+    <div>
+      <div class="panel-title">Show</div>
+      <button class="filter-btn act-both" id="btn-both" onclick="setFilter('both')">◉ Both series</button>
+      <button class="filter-btn"          id="btn-ufo"  onclick="setFilter('ufo')">◉ UFO only</button>
+      <button class="filter-btn"          id="btn-bf"   onclick="setFilter('bf')">◉ Bigfoot only</button>
+    </div>
+
+    <div>
+      <div class="panel-title">Series</div>
+      <div class="legend-row">
+        <div class="leg-swatch" style="background:#2c7bb6;"></div>
+        UFO sightings
+      </div>
+      <div class="legend-row">
+        <div class="leg-swatch" style="background:#FDAE61;"></div>
+        Bigfoot sightings
+      </div>
+    </div>
+
+    <div>
+      <div class="panel-title">Media annotation size</div>
+      <div style="font-size:10.5px;color:#ffffff;margin-bottom:12px;line-height:1.5;">
+        Dot radius = IMDb rating count
+      </div>
+      <svg id="size-legend" width="188" height="120"></svg>
+    </div>
+
+  </div>
+</div>
+
+<div id="tooltip"></div>
+<div id="ui-buttons">
+  <button class="ui-btn visible" id="btn-zoom">[ select to zoom ]</button>
+  <button class="ui-btn"         id="btn-reset">[ reset zoom ]</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script>
+
+// ═══════════════════════════════════════════════════
+// SIGHTINGS DATA  (annual counts)
+// ═══════════════════════════════════════════════════
+
+const UFO_DATA = [
+  {y:1910,n:2},{y:1911,n:0},{y:1912,n:0},{y:1913,n:0},{y:1914,n:0},
+  {y:1915,n:0},{y:1916,n:0},{y:1917,n:0},{y:1918,n:0},{y:1919,n:0},
+  {y:1920,n:1},{y:1921,n:0},{y:1922,n:0},{y:1923,n:0},{y:1924,n:0},
+  {y:1925,n:1},{y:1926,n:0},{y:1927,n:0},{y:1928,n:0},{y:1929,n:1},
+  {y:1930,n:1},{y:1931,n:2},{y:1932,n:0},{y:1933,n:1},{y:1934,n:1},
+  {y:1935,n:0},{y:1936,n:1},{y:1937,n:2},{y:1938,n:0},{y:1939,n:3},
+  {y:1940,n:0},{y:1941,n:1},{y:1942,n:2},{y:1943,n:5},{y:1944,n:6},
+  {y:1945,n:7},{y:1946,n:8},{y:1947,n:35},{y:1948,n:7},{y:1949,n:16},
+  {y:1950,n:25},{y:1951,n:17},{y:1952,n:44},{y:1953,n:31},{y:1954,n:49},
+  {y:1955,n:28},{y:1956,n:43},{y:1957,n:69},{y:1958,n:42},{y:1959,n:47},
+  {y:1960,n:58},{y:1961,n:41},{y:1962,n:65},{y:1963,n:77},{y:1964,n:85},
+  {y:1965,n:176},{y:1966,n:169},{y:1967,n:165},{y:1968,n:199},{y:1969,n:134},
+  {y:1970,n:122},{y:1971,n:110},{y:1972,n:135},{y:1973,n:211},{y:1974,n:240},
+  {y:1975,n:281},{y:1976,n:248},{y:1977,n:232},{y:1978,n:293},{y:1979,n:213},
+  {y:1980,n:215},{y:1981,n:151},{y:1982,n:160},{y:1983,n:130},{y:1984,n:160},
+  {y:1985,n:193},{y:1986,n:167},{y:1987,n:187},{y:1988,n:211},{y:1989,n:221},
+  {y:1990,n:218},{y:1991,n:201},{y:1992,n:215},{y:1993,n:259},{y:1994,n:363},
+  {y:1995,n:1003},{y:1996,n:720},{y:1997,n:1115},{y:1998,n:1581},{y:1999,n:2525},
+  {y:2000,n:2426},{y:2001,n:2635},{y:2002,n:2654},{y:2003,n:3199},{y:2004,n:3543},
+  {y:2005,n:3511},{y:2006,n:3146},{y:2007,n:3737},{y:2008,n:4308},{y:2009,n:3953},
+  {y:2010,n:3827},{y:2011,n:4734},{y:2012,n:6750},{y:2013,n:6481},{y:2014,n:2096}
+];
+
+const BF_DATA = [
+  {y:1921,n:1},{y:1922,n:0},{y:1923,n:0},{y:1924,n:0},{y:1925,n:1},
+  {y:1926,n:0},{y:1927,n:0},{y:1928,n:0},{y:1929,n:0},{y:1930,n:1},
+  {y:1931,n:0},{y:1932,n:0},{y:1933,n:0},{y:1934,n:0},{y:1935,n:0},
+  {y:1936,n:0},{y:1937,n:0},{y:1938,n:1},{y:1939,n:0},{y:1940,n:0},
+  {y:1941,n:1},{y:1942,n:1},{y:1943,n:0},{y:1944,n:2},{y:1945,n:0},
+  {y:1946,n:0},{y:1947,n:1},{y:1948,n:1},{y:1949,n:2},{y:1950,n:3},
+  {y:1951,n:0},{y:1952,n:1},{y:1953,n:3},{y:1954,n:1},{y:1955,n:3},
+  {y:1956,n:4},{y:1957,n:4},{y:1958,n:5},{y:1959,n:1},{y:1960,n:5},
+  {y:1961,n:9},{y:1962,n:5},{y:1963,n:10},{y:1964,n:8},{y:1965,n:8},
+  {y:1966,n:6},{y:1967,n:12},{y:1968,n:12},{y:1969,n:18},{y:1970,n:19},
+  {y:1971,n:12},{y:1972,n:21},{y:1973,n:29},{y:1974,n:35},{y:1975,n:43},
+  {y:1976,n:37},{y:1977,n:61},{y:1978,n:74},{y:1979,n:40},{y:1980,n:65},
+  {y:1981,n:39},{y:1982,n:46},{y:1983,n:41},{y:1984,n:35},{y:1985,n:25},
+  {y:1986,n:45},{y:1987,n:32},{y:1988,n:32},{y:1989,n:31},{y:1990,n:38},
+  {y:1991,n:39},{y:1992,n:28},{y:1993,n:40},{y:1994,n:58},{y:1995,n:44},
+  {y:1996,n:41},{y:1997,n:72},{y:1998,n:74},{y:1999,n:63},{y:2000,n:139},
+  {y:2001,n:123},{y:2002,n:101},{y:2003,n:146},{y:2004,n:230},{y:2005,n:205},
+  {y:2006,n:171},{y:2007,n:141},{y:2008,n:138},{y:2009,n:119},{y:2010,n:97},
+  {y:2011,n:119},{y:2012,n:139},{y:2013,n:119},{y:2014,n:98}
+];
+
+// ═══════════════════════════════════════════════════
+// MEDIA ANNOTATIONS
+// ═══════════════════════════════════════════════════
+
+const UFO_MEDIA = [
+  { title: "The Day the Earth Stood Still",  year: 1951, rating: 7.7, votes:  74000,
+    desc: "An alien visitor and his powerful robot land on Earth and issue an ultimatum to humanity: achieve peace or be destroyed. Released at the height of Cold War nuclear anxiety, this landmark film crystallized fears about technology and the unknown, setting the template for serious UFO cinema." },
+  { title: "Forbidden Planet",               year: 1956, rating: 7.7, votes:  65000,
+    desc: "A starship crew visits a distant planet where a scientist and his daughter live alone — with a lethal invisible force. A visually stunning sci-fi spectacle that influenced generations of filmmakers and deepened public fascination with extraterrestrial worlds." },
+  { title: "Earth vs. the Flying Saucers",   year: 1956, rating: 6.4, votes:  13000,
+    desc: "Alien flying saucers launch a devastating attack on Earth in Ray Harryhausen's effects showcase. One of the first films to portray the 'flying saucer' phenomenon cinematically, directly reflecting the enormous public fascination following Kenneth Arnold's 1947 sighting." },
+  { title: "Close Encounters of the Third Kind", year: 1977, rating: 7.6, votes: 287000,
+    desc: "After a strange roadside encounter with UFOs, a power company lineman becomes obsessed with reaching an isolated flat-topped mountain. Spielberg's film gave emotional and visual form to the UFO contact narrative, legitimizing benevolent alien contact for millions and triggering a wave of sighting reports." },
+  { title: "E.T. the Extra-Terrestrial",     year: 1982, rating: 7.9, votes: 426000,
+    desc: "A lonely ten-year-old befriends a gentle alien stranded on Earth and helps him find his way home before government agents close in. The highest-grossing film of its era, E.T. transformed public perception of extraterrestrials from threatening invaders to sympathetic beings, fueling a generation of UFO interest." },
+  { title: "Communion",                      year: 1989, rating: 5.5, votes:  14000,
+    desc: "Based on Whitley Strieber's controversial 1987 memoir, Christopher Walken portrays a writer terrorized by nightly visitations from small grey beings. The book sold millions and the film brought the modern 'grey alien' archetype and abduction experience into mainstream consciousness." },
+  { title: "Fire in the Sky",                year: 1993, rating: 6.6, votes:  47000,
+    desc: "Based on the alleged 1975 abduction of logger Travis Walton in the Apache-Sitgreaves National Forest, Arizona. The film's harrowing abduction sequence became one of Hollywood's most disturbing alien encounter depictions and significantly amplified public belief in alien abductions during the 1990s surge in sightings." },
+  { title: "Independence Day",               year: 1996, rating: 7.0, votes: 559000,
+    desc: "Alien spacecraft the size of cities suddenly appear over major cities worldwide and begin exterminating humanity. The defining alien invasion blockbuster of the 1990s, this film was released during a dramatic peak in UFO sighting reports and became a cultural touchstone for the era." },
+  { title: "Men in Black",                   year: 1997, rating: 7.3, votes: 631000,
+    desc: "A police officer joins a top-secret government organization that monitors, polices, and conceals extraterrestrial life on Earth. By fusing government cover-up mythology with comedy, Men in Black mainstreamed UFO conspiracy culture and the 'Men in Black' narrative into global popular consciousness." },
+  { title: "Contact",                        year: 1997, rating: 7.5, votes: 264000,
+    desc: "Astronomer Ellie Arroway detects a radio signal from Vega and is selected to travel through an alien wormhole. Based on Carl Sagan's novel, Contact approached first contact with scientific rigor and emotional depth, inspiring a generation of listeners to scan the skies more seriously." },
+  { title: "The X-Files: Fight the Future", year: 1998, rating: 7.1, votes:  89000,
+    desc: "FBI agents Mulder and Scully uncover a vast government conspiracy involving alien colonization and a deadly alien virus found in a prehistoric cave in Texas. The theatrical extension of the TV series that defined 1990s UFO culture for an entire generation." },
+  { title: "Signs",                          year: 2002, rating: 6.9, votes: 398000,
+    desc: "Crop circles appear overnight at a former minister's Pennsylvania farm as a global alien invasion unfolds. M. Night Shyamalan's slow-burn thriller played to deep public fears about crop circles and the vulnerability of everyday life, becoming one of the highest-grossing alien films of the 2000s." },
+  { title: "War of the Worlds",              year: 2005, rating: 6.5, votes: 465000,
+    desc: "Massive Martian tripods emerge from underground and begin exterminating humanity. Spielberg's visceral remake brought H.G. Wells' alien invasion to the post-9/11 era with documentary-style terror, released during the period when UFO sighting reports were accelerating steeply." },
+  { title: "The Fourth Kind",               year: 2009, rating: 5.9, votes:  78000,
+    desc: "Presented as a thriller incorporating 'actual archival footage', a psychiatrist in Nome, Alaska discovers that nightly alien abductions have been terrorizing the community for decades. Its blurring of fact and fiction generated significant controversy about alien abduction narratives." },
+  { title: "Paul",                          year: 2011, rating: 7.0, votes: 255000,
+    desc: "Two sci-fi nerds on an American road trip encounter Paul, an alien who has been working as a classified government consultant since 1947. A comedic meta-commentary on the entire canon of UFO culture, Area 51, and alien contact films." },
+  { title: "Dark Skies",                    year: 2013, rating: 6.3, votes:  53000,
+    desc: "A suburban family in a quiet neighborhood comes under relentless assault from a terrifying alien force that has marked their youngest child. A tense slow-burn horror that drew on alien abduction mythology and played on fears of surveillance and helplessness." },
+];
+
+const BF_MEDIA = [
+  { title: "The Legend of Boggy Creek",        year: 1972, rating: 5.8, votes:  4400,
+    desc: "A docudrama reconstruction of reported encounters with the 'Fouke Monster', a Bigfoot-like creature allegedly terrorizing rural Fouke, Arkansas. One of the first and most influential cryptid documentaries ever made, it grossed over $25 million on a tiny budget and gave millions of Americans their first cinematic Bigfoot encounter." },
+  { title: "The Mysterious Monsters",           year: 1975, rating: 5.9, votes:  1200,
+    desc: "Peter Graves narrates this documentary examining eyewitness evidence for Bigfoot, the Loch Ness Monster, and the Abominable Snowman. Released during the height of the mid-70s paranormal media wave, it brought serious documentary treatment to cryptid phenomena for a mainstream audience." },
+  { title: "Creature from Black Lake",          year: 1976, rating: 5.6, votes:  1600,
+    desc: "Two researchers from Chicago travel to rural Louisiana to investigate local accounts of a large ape-like creature lurking in the swamps. One of the early regional Bigfoot horror films that expanded the creature mythology beyond the Pacific Northwest." },
+  { title: "The Legend of Bigfoot",             year: 1976, rating: 5.2, votes:   900,
+    desc: "Documentary following veteran outdoorsman Ivan Marx on an expedition into remote wilderness in search of Bigfoot, featuring alleged footprint casts and eyewitness interviews. Released during the peak of mid-70s Bigfoot enthusiasm following the widespread coverage of the Patterson-Gimlin film." },
+  { title: "Harry and the Hendersons",          year: 1987, rating: 6.5, votes: 44000,
+    desc: "After accidentally hitting Bigfoot with their station wagon on a camping trip, the Henderson family smuggles him home to suburban Seattle and discovers he is gentle, lovable, and brilliant — while a relentless trophy hunter closes in. Won the Academy Award for Best Makeup and spawned a TV series, bringing Bigfoot firmly into mainstream family culture." },
+  { title: "Abominable (2006)",                 year: 2006, rating: 5.0, votes:  4800,
+    desc: "A paraplegic man returns to a remote mountain cabin and witnesses a murderous Bigfoot terrorizing his neighbors — but nobody believes him. A horror take on the Bigfoot mythology notable for its practical effects work." },
+  { title: "Willow Creek",                      year: 2013, rating: 5.3, votes:  9200,
+    desc: "Found footage film following a couple deep into the forests of Humboldt County, California to investigate the site of the famous Patterson-Gimlin Bigfoot film. Written and directed by comedian Bobcat Goldthwait, notable for an extended 19-minute single-shot tent scene." },
+  { title: "Exists",                            year: 2014, rating: 5.2, votes: 11600,
+    desc: "A group of friends venture into a remote cabin in the East Texas woods and are hunted by a large, extremely territorial Bigfoot. Directed by Eduardo Sanchez, co-director of The Blair Witch Project, this found-footage film was one of the most visible Bigfoot horror releases in years." },
+];
+
+// ═══════════════════════════════════════════════════
+// LOOKUP MAPS
+// ═══════════════════════════════════════════════════
+
+const ufoByYear = {};
+UFO_DATA.forEach(d => ufoByYear[d.y] = d.n);
+const bfByYear  = {};
+BF_DATA.forEach(d => bfByYear[d.y] = d.n);
+
+const FULL_YEAR_MIN = 1910;
+const FULL_YEAR_MAX = 2014;
+
+// ═══════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════
+
+let filter      = 'both';
+let xDomain     = [FULL_YEAR_MIN, FULL_YEAR_MAX];
+let zoomMode    = false;
+let pinnedMedia = null;
+let hoveredMedia = null;
+
+const tip  = document.getElementById("tooltip");
+const btnZ = document.getElementById("btn-zoom");
+const btnR = document.getElementById("btn-reset");
+
+// ═══════════════════════════════════════════════════
+// FILTER
+// ═══════════════════════════════════════════════════
+
+function setFilter(f) {
+  filter = f;
+  ['both','ufo','bf'].forEach(id => {
+    const btn = document.getElementById('btn-' + id);
+    btn.className = 'filter-btn' + (f === id ? ' act-' + id : '');
+  });
+  pinnedMedia = null;
+  tip.style.opacity = '0';
+  tip.className = '';
+  render();
+}
+
+// ═══════════════════════════════════════════════════
+// ZOOM MODE
+// ═══════════════════════════════════════════════════
+
+function setZoomMode(on) {
+  zoomMode = on;
+  document.body.classList.toggle("zoom-mode", on);
+  btnZ.classList.toggle("active", on);
+  btnZ.textContent = on ? "[ cancel zoom ]" : "[ select to zoom ]";
+  render();
+}
+
+btnZ.addEventListener("click", () => setZoomMode(!zoomMode));
+btnR.addEventListener("click", () => {
+  xDomain = [FULL_YEAR_MIN, FULL_YEAR_MAX];
+  btnR.classList.remove("visible");
+  render();
+});
+
+// ═══════════════════════════════════════════════════
+// TOOLTIP HELPERS
+// ═══════════════════════════════════════════════════
+
+function starsHtml(r) {
+  const full = Math.floor(r);
+  const half = r - full >= 0.5 ? 1 : 0;
+  return '★'.repeat(full) + (half ? '½' : '');
+}
+
+function fmtVotes(v) {
+  if (v >= 1000000) return (v/1000000).toFixed(1) + 'M';
+  if (v >= 1000)    return Math.round(v/1000) + 'K';
+  return v;
+}
+
+function placeTip(dotX, dotY) {
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  const pad = 14;
+  let lx = dotX - tw/2;
+  let ty = dotY - th - pad;
+  lx = Math.max(pad, Math.min(lx, window.innerWidth - tw - pad));
+  if (ty < pad) ty = dotY + pad + 6;
+  tip.style.left = lx + 'px';
+  tip.style.top  = ty + 'px';
+}
+
+function showHoverTip(item, kind, dotX, dotY) {
+  if (pinnedMedia !== null) return;
+  const cls = kind === 'ufo' ? 'tt-year-ufo' : 'tt-year-bf';
+  tip.className = '';
+  tip.innerHTML =
+    `<span class="tt-title">${item.title}</span>` +
+    `<span class="tt-year ${cls}">${item.year}</span>  ` +
+    `<span class="tt-stars">${starsHtml(item.rating)}</span> ` +
+    `<span class="tt-votes">${item.rating.toFixed(1)} · ${fmtVotes(item.votes)} ratings</span>` +
+    `<span class="tt-hint">click to read description</span>`;
+  tip.style.opacity = '0';
+  requestAnimationFrame(() => { placeTip(dotX, dotY); tip.style.opacity = '1'; });
+}
+
+function showPinnedTip(item, kind, dotX, dotY) {
+  pinnedMedia = { item, kind };
+  const cls = kind === 'ufo' ? 'tt-year-ufo' : 'tt-year-bf';
+  tip.className = 'pinned-' + kind;
+  tip.innerHTML =
+    `<span class="tt-title">${item.title}</span>` +
+    `<span class="tt-year ${cls}">${item.year}</span>  ` +
+    `<span class="tt-stars">${starsHtml(item.rating)}</span> ` +
+    `<span class="tt-votes">${item.rating.toFixed(1)} · ${fmtVotes(item.votes)} ratings</span>` +
+    `<div class="tt-desc">${item.desc}</div>` +
+    `<span class="tt-hint">click anywhere to dismiss</span>`;
+  tip.style.opacity = '0';
+  requestAnimationFrame(() => { placeTip(dotX, dotY); tip.style.opacity = '1'; });
+}
+
+function clearPin() {
+  pinnedMedia = null;
+  tip.style.opacity = '0';
+  tip.className = '';
+  syncDots();
+}
+
+document.addEventListener('click', () => { if (pinnedMedia) clearPin(); });
+
+// ═══════════════════════════════════════════════════
+// DOT RADIUS SCALE
+// ═══════════════════════════════════════════════════
+
+const rScale = d3.scaleSqrt().domain([0, 700000]).range([3.5, 16]).clamp(true);
+function dotR(votes) { return Math.max(3.5, rScale(votes)); }
+
+// ═══════════════════════════════════════════════════
+// SYNC DOT STYLES
+// ═══════════════════════════════════════════════════
+
+function syncDots() {
+  d3.selectAll('.media-dot')
+    .attr('opacity', d => {
+      if (pinnedMedia && pinnedMedia.item === d.item) return 1;
+      if (hoveredMedia && hoveredMedia === d.item) return 1;
+      return 0.78;
+    })
+    .attr('stroke-width', d => {
+      if (pinnedMedia && pinnedMedia.item === d.item) return 2.5;
+      if (hoveredMedia && hoveredMedia === d.item) return 2;
+      return 1.5;
+    });
+}
+
+// ═══════════════════════════════════════════════════
+// MAIN RENDER
+// ═══════════════════════════════════════════════════
+
+const MARGIN_L  = 78;
+const MARGIN_R  = 78;
+const MARGIN_T  = 78;
+const MARGIN_B  = 65;
+
+function render() {
+  const W = document.getElementById('chart-wrap').clientWidth;
+  const H = window.innerHeight;
+
+  d3.select('#chart-wrap').selectAll('svg').remove();
+
+  const iW = W - MARGIN_L - MARGIN_R;
+  const iH = H - MARGIN_T - MARGIN_B;
+
+  const xMin = xDomain[0], xMax = xDomain[1];
+
+  const visUFO = UFO_DATA.filter(d => d.y >= xMin && d.y <= xMax);
+  const visBF  = BF_DATA.filter(d => d.y >= xMin && d.y <= xMax);
+
+  const xScale    = d3.scaleLinear().domain([xMin, xMax]).range([0, iW]);
+  const ufoYScale = d3.scaleLinear()
+    .domain([0, d3.max(UFO_DATA, d => d.n) * 1.12])
+    .range([iH, 0]);
+  const bfYScale  = d3.scaleLinear()
+    .domain([0, d3.max(BF_DATA, d => d.n) * 1.12])
+    .range([iH, 0]);
+
+  const svg = d3.select('#chart-wrap').append('svg')
+    .attr('width', W).attr('height', H)
+    .style('background', '#000');
+
+  const defs = svg.append('defs');
+
+  ['ufo','bf'].forEach(k => {
+    const col = k === 'ufo' ? '#2c7bb6' : '#FDAE61';
+    const gr = defs.append('linearGradient')
+      .attr('id', `grad-${k}`)
+      .attr('x1','0').attr('y1','0').attr('x2','0').attr('y2','1');
+    gr.append('stop').attr('offset','0%').attr('stop-color', col).attr('stop-opacity', 0.30);
+    gr.append('stop').attr('offset','100%').attr('stop-color', col).attr('stop-opacity', 0.01);
+  });
+
+  defs.append('clipPath').attr('id','chart-clip')
+    .append('rect').attr('width', iW).attr('height', iH);
+
+  const g = svg.append('g').attr('transform', `translate(${MARGIN_L},${MARGIN_T})`);
+
+  // Grid
+  g.append('g').attr('class','vz-grid')
+    .call(d3.axisLeft(ufoYScale).ticks(5).tickSize(-iW).tickFormat(''))
+    .call(s => s.select('.domain').remove());
+
+  // Lines + areas
+  const lineGen = (yS) => d3.line().x(d => xScale(d.y)).y(d => yS(d.n)).curve(d3.curveCatmullRom.alpha(0.5));
+  const areaGen = (yS) => d3.area().x(d => xScale(d.y)).y0(iH).y1(d => yS(d.n)).curve(d3.curveCatmullRom.alpha(0.5));
+
+  if (filter !== 'bf') {
+    g.append('path').datum(visUFO)
+      .attr('clip-path','url(#chart-clip)')
+      .attr('fill','url(#grad-ufo)').attr('d', areaGen(ufoYScale));
+    g.append('path').datum(visUFO)
+      .attr('clip-path','url(#chart-clip)')
+      .attr('fill','none').attr('stroke','#2c7bb6').attr('stroke-width', 2.2)
+      .attr('d', lineGen(ufoYScale));
+  }
+  if (filter !== 'ufo') {
+    g.append('path').datum(visBF)
+      .attr('clip-path','url(#chart-clip)')
+      .attr('fill','url(#grad-bf)').attr('d', areaGen(bfYScale));
+    g.append('path').datum(visBF)
+      .attr('clip-path','url(#chart-clip)')
+      .attr('fill','none').attr('stroke','#FDAE61').attr('stroke-width', 2.2)
+      .attr('d', lineGen(bfYScale));
+  }
+
+  // Axes
+  const tickStep   = (xMax - xMin) > 50 ? 10 : 5;
+  const tickStart  = Math.ceil(xMin / tickStep) * tickStep;
+  const tickValues = d3.range(tickStart, xMax + 1, tickStep);
+
+  g.append('g').attr('class','vz-axis')
+    .attr('transform', `translate(0,${iH})`)
+    .call(d3.axisBottom(xScale).tickValues(tickValues).tickFormat(d3.format('d')));
+
+  if (filter !== 'bf') {
+    g.append('g').attr('class','vz-axis axis-ufo')
+      .attr('transform', `translate(${iW},0)`)
+      .call(d3.axisRight(ufoYScale).ticks(5).tickFormat(d => d >= 1000 ? (d/1000)+'K' : d));
+  }
+  if (filter !== 'ufo') {
+    g.append('g').attr('class','vz-axis axis-bf')
+      .call(d3.axisLeft(bfYScale).ticks(5));
+  }
+
+  // Axis labels
+  if (filter !== 'bf') {
+    g.append('text')
+      .attr('transform', `translate(${iW + 64}, ${iH/2}) rotate(90)`)
+      .attr('text-anchor','middle')
+      .attr('font-size','15px').attr('font-weight','700')
+      .attr('fill','#2c7bb6').attr('opacity', 0.9)
+      .attr('font-family','Courier New, monospace')
+      .text('UFO sightings / yr');
+  }
+  if (filter !== 'ufo') {
+    g.append('text')
+      .attr('transform', `translate(-64, ${iH/2}) rotate(-90)`)
+      .attr('text-anchor','middle')
+      .attr('font-size','15px').attr('font-weight','700')
+      .attr('fill','#FDAE61').attr('opacity', 0.9)
+      .attr('font-family','Courier New, monospace')
+      .text('Bigfoot sightings / yr');
+  }
+
+  // X-axis label
+  g.append('text')
+    .attr('x', iW / 2).attr('y', iH + 52)
+    .attr('text-anchor','middle')
+    .attr('font-size','15px').attr('font-weight','700')
+    .attr('fill','#ffffff')
+    .attr('font-family','Courier New, monospace')
+    .text('Year');
+
+  // Title + subtitle
+  svg.append('text')
+    .attr('x', MARGIN_L).attr('y', 30)
+    .attr('font-size','20px').attr('font-weight','700')
+    .attr('fill','#D7EAF7').attr('font-family','Courier New, monospace')
+    .text('UFO and Bigfoot media and sighting count over time');
+
+  svg.append('text')
+    .attr('x', MARGIN_L).attr('y', 56)
+    .attr('font-size','14px').attr('fill','#ffffff')
+    .attr('font-family','Courier New, monospace')
+    .text('Annual sighting reports annotated with notable media releases  |  hover marks for details, click to read');
+
+  // ── ZOOM MODE: brush ──
+  if (zoomMode) {
+    const brush = d3.brushX()
+      .extent([[0, 0], [iW, iH]])
+      .on("end", function(event) {
+        if (!event.selection) { setZoomMode(false); return; }
+        const [x0, x1] = event.selection;
+        const d0 = xScale.invert(x0);
+        const d1 = xScale.invert(x1);
+        if (d1 - d0 < 2) { d3.select(this).call(brush.clear); return; }
+        xDomain = [Math.floor(d0), Math.ceil(d1)];
+        zoomMode = false;
+        document.body.classList.remove("zoom-mode");
+        btnZ.classList.remove("active");
+        btnZ.textContent = "[ select to zoom ]";
+        btnR.classList.add("visible");
+        render();
+      });
+    const bG = g.append("g").attr("class","brush").call(brush);
+    bG.select(".selection").attr("fill","#D7EAF7").attr("fill-opacity",0.12)
+      .attr("stroke","#D7EAF7").attr("stroke-width",1);
+    return;
+  }
+
+  // ── Hover crosshair elements (below media dots) ──
+  const hoverLine = g.append('line')
+    .attr('stroke', '#D7EAF7').attr('stroke-width', 1).attr('opacity', 0)
+    .attr('y1', 0).attr('y2', iH).attr('pointer-events', 'none');
+
+  const hoverDotUFO = (filter !== 'bf')
+    ? g.append('circle').attr('r', 5)
+        .attr('fill', '#2c7bb6').attr('stroke', '#000').attr('stroke-width', 2)
+        .attr('pointer-events', 'none').attr('opacity', 0)
+    : null;
+
+  const hoverDotBF = (filter !== 'ufo')
+    ? g.append('circle').attr('r', 5)
+        .attr('fill', '#FDAE61').attr('stroke', '#000').attr('stroke-width', 2)
+        .attr('pointer-events', 'none').attr('opacity', 0)
+    : null;
+
+  const bisect = d3.bisector(d => d.y).center;
+
+  // ── Media annotation dots data ──
+  let dotData = [];
+  if (filter !== 'bf') {
+    UFO_MEDIA.forEach(m => {
+      const sightings = ufoByYear[m.year] ?? 0;
+      if (m.year >= xMin && m.year <= xMax)
+        dotData.push({ item: m, kind: 'ufo', y: ufoYScale(sightings), x: xScale(m.year) });
+    });
+  }
+  if (filter !== 'ufo') {
+    BF_MEDIA.forEach(m => {
+      const sightings = bfByYear[m.year] ?? 0;
+      if (m.year >= xMin && m.year <= xMax)
+        dotData.push({ item: m, kind: 'bf', y: bfYScale(sightings), x: xScale(m.year) });
+    });
+  }
+
+  // Drop lines
+  g.selectAll('.media-drop')
+    .data(dotData)
+    .join('line')
+    .attr('class','media-drop')
+    .attr('x1', d => d.x).attr('x2', d => d.x)
+    .attr('y1', d => d.y).attr('y2', iH)
+    .attr('stroke', d => d.kind === 'ufo' ? '#2c7bb6' : '#FDAE61')
+    .attr('stroke-width', 0.8)
+    .attr('stroke-dasharray','3,4')
+    .attr('opacity', 0.22)
+    .attr('clip-path','url(#chart-clip)');
+
+  // ── Mouse overlay (sits above chart, below media dots in SVG order) ──
+  svg.append('rect')
+    .attr('x', MARGIN_L).attr('y', MARGIN_T)
+    .attr('width', iW).attr('height', iH)
+    .attr('fill', 'none').attr('pointer-events', 'all')
+    .on('mousemove', function(event) {
+      if (hoveredMedia || pinnedMedia) return; // media dot takes priority
+
+      const [mx] = d3.pointer(event, g.node());
+      const yr = xScale.invert(mx);
+
+      // Snap to nearest year in the active reference series
+      const refData = filter !== 'bf' ? visUFO : visBF;
+      const idx = bisect(refData, yr);
+      const ref = refData[Math.max(0, Math.min(idx, refData.length - 1))];
+      if (!ref) return;
+      const nearestYear = ref.y;
+
+      const cx = xScale(nearestYear);
+      hoverLine.attr('x1', cx).attr('x2', cx).attr('opacity', 0.35);
+
+      const ufoPoint = visUFO.find(d => d.y === nearestYear);
+      const bfPoint  = visBF.find(d => d.y === nearestYear);
+
+      if (hoverDotUFO && ufoPoint) {
+        hoverDotUFO.attr('cx', cx).attr('cy', ufoYScale(ufoPoint.n)).attr('opacity', 1);
+      }
+      if (hoverDotBF && bfPoint) {
+        hoverDotBF.attr('cx', cx).attr('cy', bfYScale(bfPoint.n)).attr('opacity', 1);
+      }
+
+      // Build tooltip
+      let html = `<span style="font-size:14px;font-weight:700;color:#fff;display:block;margin-bottom:6px;">${nearestYear}</span>`;
+      if (filter !== 'bf') {
+        const n = ufoPoint ? ufoPoint.n : 0;
+        html += `<span style="color:#2c7bb6;font-size:12px;">UFO: ${n.toLocaleString()} sighting${n !== 1 ? 's' : ''}</span><br>`;
+      }
+      if (filter !== 'ufo') {
+        const n = bfPoint ? bfPoint.n : 0;
+        html += `<span style="color:#FDAE61;font-size:12px;">Bigfoot: ${n.toLocaleString()} sighting${n !== 1 ? 's' : ''}</span>`;
+      }
+
+      tip.className = '';
+      tip.innerHTML = html;
+      tip.style.opacity = '0';
+      requestAnimationFrame(() => { placeTip(event.clientX, event.clientY - 12); tip.style.opacity = '1'; });
+    })
+    .on('mouseleave', function() {
+      hoverLine.attr('opacity', 0);
+      if (hoverDotUFO) hoverDotUFO.attr('opacity', 0);
+      if (hoverDotBF) hoverDotBF.attr('opacity', 0);
+      if (!pinnedMedia) { tip.style.opacity = '0'; tip.className = ''; }
+    });
+
+  // ── Media dots (topmost — drawn last so they sit above overlay) ──
+  svg.selectAll('.media-dot')
+    .data(dotData)
+    .join('circle')
+    .attr('class','media-dot')
+    .attr('cx', d => MARGIN_L + d.x)
+    .attr('cy', d => MARGIN_T + d.y)
+    .attr('r',  d => dotR(d.item.votes))
+    .attr('fill',   d => d.kind === 'ufo' ? '#2c7bb6' : '#FDAE61')
+    .attr('stroke', d => d.kind === 'ufo' ? '#7ab8e0' : '#ffe0b0')
+    .attr('stroke-width', 1.5)
+    .attr('opacity', 0.82)
+    .on('mouseover', function(event, d) {
+      hoveredMedia = d.item;
+      syncDots();
+      // Hide sighting crosshair when over a media dot
+      hoverLine.attr('opacity', 0);
+      if (hoverDotUFO) hoverDotUFO.attr('opacity', 0);
+      if (hoverDotBF) hoverDotBF.attr('opacity', 0);
+      showHoverTip(d.item, d.kind, MARGIN_L + d.x, MARGIN_T + d.y);
+    })
+    .on('mouseout', function() {
+      hoveredMedia = null;
+      syncDots();
+      if (!pinnedMedia) { tip.style.opacity = '0'; tip.className = ''; }
+    })
+    .on('click', function(event, d) {
+      event.stopPropagation();
+      if (pinnedMedia && pinnedMedia.item === d.item) {
+        clearPin();
+      } else {
+        pinnedMedia = null;
+        showPinnedTip(d.item, d.kind, MARGIN_L + d.x, MARGIN_T + d.y);
+      }
+      syncDots();
+    });
+}
+
+// ═══════════════════════════════════════════════════
+// SIZE LEGEND  (right panel SVG)
+// ═══════════════════════════════════════════════════
+
+function buildSizeLegend() {
+  const svg = d3.select('#size-legend');
+  const entries = [
+    { votes: 15000,  label: '15K ratings' },
+    { votes: 100000, label: '100K ratings' },
+    { votes: 400000, label: '400K ratings' },
+    { votes: 650000, label: '650K ratings' },
+  ];
+  let cy = 10;
+  entries.forEach(e => {
+    const r = dotR(e.votes);
+    svg.append('circle')
+      .attr('cx', 20).attr('cy', cy + r)
+      .attr('r', r)
+      .attr('fill','rgba(215,234,247,0.18)')
+      .attr('stroke','rgba(215,234,247,0.5)')
+      .attr('stroke-width', 1.2);
+    svg.append('text')
+      .attr('x', 42).attr('y', cy + r + 4.5)
+      .attr('font-size','11px').attr('fill','#ffffff')
+      .attr('font-family','Courier New, monospace')
+      .text(e.label);
+    cy += r * 2 + 8;
+  });
+  svg.attr('height', cy + 4);
+}
+
+// ═══════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════
+
+render();
+buildSizeLegend();
+
+let rafId;
+window.addEventListener('resize', () => {
+  cancelAnimationFrame(rafId);
+  rafId = requestAnimationFrame(render);
+});
+
+</script>
+</body>
+</html>
